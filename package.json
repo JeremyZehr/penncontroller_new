@@ -1,0 +1,19 @@
+{
+  "name": "penncontroller",
+  "version": "2.1.0",
+  "description": "IBEX extension",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Jeremy Zehr",
+  "license": "BSD",
+  "devDependencies": {
+    "webpack": "^5.72.1",
+    "webpack-cli": "^4.9.2"
+  },
+  "dependencies": {
+    "@zip.js/zip.js": "^2.4.12"
+  }
+}
