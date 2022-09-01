@@ -1,0 +1,71 @@
+<html>
+<body>
+
+<script>
+  const reader = new FileReader();
+  const generate = async ()=>{
+    document.querySelector("#private_key").innerText = "Generating key pair...";
+    const keyPair = await window.crypto.subtle.generateKey({
+      name: "RSA-OAEP",
+      modulusLength: 4096,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: "SHA-256"
+    },true, ["encrypt", "decrypt"]);
+    console.log("keypair",keyPair);
+    const public_key_exported = await window.crypto.subtle.exportKey('jwk', keyPair.publicKey);
+    const private_key_exported = await window.crypto.subtle.exportKey('jwk', keyPair.privateKey);
+    document.querySelector("#public_key").innerText = JSON.stringify(public_key_exported);
+    document.querySelector("#public_key_text").innerText = "Paste this as the public key in your script";
+    const private_key_url = URL.createObjectURL(new Blob([JSON.stringify(private_key_exported)],{type: "text/plain"}));
+    document.querySelector("#private_key").innerHTML = `<a target='_blank' download='private.key'
+    href='${private_key_url}'>Download the private key file</a>`;
+  }
+  const read_results_file = async ()=>{
+    const key_file = document.querySelector("#decode_key").files[0];
+    if (!key_file) return; //alert("Upload a private key file first");
+    const results_file = document.querySelector("#file_to_decode").files[0];
+    if (!results_file) return; // alert("Upload a results file");
+    document.querySelector("#results_file").innerHTML = "<p>Decrypting file...</p>";
+    let private_key_exported = await key_file.text();
+    private_key_exported = JSON.parse( private_key_exported );
+    const private_key = await window.crypto.subtle.importKey('jwk', private_key_exported, {
+      name: "RSA-OAEP",
+      modulusLength: 4096,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: "SHA-256"
+    }, true, ['decrypt']);
+    reader.readAsArrayBuffer(results_file);
+    reader.onloadend = async (evt) => {
+      if (evt.target.readyState !== FileReader.DONE) return;
+      const file_content = evt.target.result;
+      const iv = file_content.slice(0,12);
+      const aes_key_encrypted = file_content.slice(12,524);
+      const data_encrypted = file_content.slice(524,);
+      const aes_key_exported = await window.crypto.subtle.decrypt({name: "RSA-OAEP"},private_key,aes_key_encrypted);
+      const aes_key = await window.crypto.subtle.importKey('raw',aes_key_exported, "AES-GCM",true,["encrypt", "decrypt"]);
+      const data_encoded = await window.crypto.subtle.decrypt({name: "AES-GCM",iv:iv},aes_key,data_encrypted);
+      const data = (new TextDecoder()).decode(data_encoded);
+      const results_file_url = URL.createObjectURL(new Blob([data],{type: "text/plain"}));
+      document.querySelector("#results_file").innerHTML = `<a target='_blank' download='raw.txt'
+        href='${results_file_url}'>Download the raw file</a>`;
+    }
+  }
+</script>
+
+<div id='generate'>
+  <button onclick='generate()'>Generate New Key Pair</button>
+  <div id='private_key'></div>
+  <div id='public_key_text'></div><pre id='public_key' style='max-width:90em; white-space:normal;'></pre>
+</div>
+
+<div id='decode'>
+  <label for='decode_key'>Upload private key file:</label>
+  <input id='decode_key' name='decode_key' type='file' onchange='read_results_file()'>
+  <label for='decode_key'>Upload encrypted file:</label>
+  <input id='file_to_decode' name='file_to_decode' type='file' onchange='read_results_file()'>
+
+  <div id='results_file'></div>
+</div>
+
+</body>
+</html>

@@ -1,4 +1,4 @@
-import { header, footer, newTrial, checkpreloaded, sendResults } from './trial';
+import { header, footer, newTrial, checkpreloaded, sendResults, encryptResults } from './trial';
 import { addTable, getTable, template } from './template';
 import { addElementType, elements } from './element';
 import { preloadZip } from './zip';
@@ -40,6 +40,7 @@ const Global = {
   Debug: ()=>debug.switch(/*on=*/true),
   DebugOff: ()=>debug.switch(/*on=*/false),
   Elements: elements,
+  EncryptResults: encryptResults,
   Footer: footer,
   GetTable: getTable,
   GetURLParameter: getURLParameter,

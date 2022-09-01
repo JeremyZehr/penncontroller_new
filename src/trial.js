@@ -1,6 +1,7 @@
 import { items, gotRunningOrder, order } from './order';
 import { Commands } from './element';
 import { debug } from './debug';
+import { get_encrypted_blob } from './utils';
 
 const debugButtons = document.createElement("DIV");
 debugButtons.classList.add("buttons");
@@ -82,7 +83,6 @@ export class Trial {
     trials.running = null;
     if (this._node instanceof Node) this._node.remove();
     this._logs = this._logs.sort((a,b)=>a[4][1]-b[4][1]);
-    console.log("calling newTrial.finishedcallback with", this._logs);
     this._finishedCallback(this._logs); 
     return this;
   }
@@ -122,7 +122,6 @@ const printPreloading = async (trial,resources,delay=PRELOAD_TIMEOUT) => {
     new Promise(r=>setTimeout(()=>r(timed_out),delay)),
     Promise.all(resources.map(r=>r._promise))
   ]);
-  console.log("diff",Date.now(),nw);
   if (preload==timed_out) 
     console.error("Some resources failed to preload:",...resources.filter(r=>r._status=="unloaded"));
   preloadNode.remove();
@@ -173,13 +172,6 @@ window.define_ibex_controller({
   },
   properties: {obligatory: [], countsForProgressBar: true, htmlDescription: null}
 });
-
-export const trials = {
-  all: [],
-  running: null,
-  constructing: new Trial()
-};
-Object.defineProperty(trials,'current',{get(){ return trials.running||trials.constructing }});
 
 let pushItems = true;
 export const pushItemsInNewTrial = (yesno=true) => pushItems = yesno;
@@ -234,10 +226,21 @@ export const checkpreloaded = (...args) => {
   return trial;
 }
 
+const oldAlert = window.alert;
+window.alert = function(...args){
+  if (args[0]=="WARNING: Results have already been sent once. Did you forget to set the 'manualSendResults' config option?") return;
+  return oldAlert.call(this, ...args);
+}
 export class SendResults {};
-export const sendResults = label => {
+export const sendResults = (label,noPrompt) => {
   if (window.manualSendResults == undefined || window.manualSendResults != false) window.manualSendResults = true;
-  const sym = {toString: ()=>"SendResults"};
+  const sym = {
+    toString: ()=>"SendResults", 
+    _cssPrefix: '',
+    noPrompt: noPrompt,
+    downloadMessage: "Click here to download a copy of your results",
+    contactMessage: "The experimenters might contact you in case the results are missing on their end:"
+  };
   window.items = [ [label===undefined?[sym,null]:label, "__SendResults__", sym] ];
   const r = new SendResults();
   r.args = [s=>s==sym];
@@ -248,8 +251,16 @@ export const sendResults = label => {
     const p = document.createElement("p");
     trials.current._node.append(p);
     window.addSafeBindMethodPair('__SendResults__');
-    window.jQuery(p).__SendResults__({_finishedCallback: r, _cssPrefix: '', _utils: order.current.options._utils})
+    sym._finishedCallback = r;
+    sym._utils = order.current.options._utils;
+    window.jQuery(p).__SendResults__(sym);
   });
+  r.setOption = (p,t) => {
+    if (p=="noPrompt") sym.noPrompt = t;
+    if (p=="downloadMessage") sym.downloadMessage = t;
+    if (p=="contactMessage") sym.contactMessage = t;
+    return r;
+  }
   return r;
 }
 export const removeSendResultsFromItems = sr=>{
@@ -257,3 +268,98 @@ export const removeSendResultsFromItems = sr=>{
   let idx;
   while ((idx=items.findIndex(i=>sr.args[0](i[2])))>=0) items.splice(idx,1);
 }
+
+// Catch the allResults array
+let allResults;
+const resultsCandidates = new Map();
+const oldPush = window.Array.prototype.push;
+window.Array.prototype.push = function(...args){
+  if ( !resultsCandidates.has(this) && this.length>0 &&
+      this.map(v=>v instanceof Array && v.length>=5 && v.map(w=>w instanceof Array && w.length==2).reduce((a,b)=>a&&b) &&
+               v[0][0]==0&&v[1][0]==1&&v[2][0]==2&&v[3][0]==3&&v[4][0]==4).reduce((a,b)=>a&&b) )
+    resultsCandidates.set(this,[]);
+  return oldPush.call(this, ...args);
+}
+const pushDirectlyToResults = (...args) => {
+  if (allResults===undefined)
+    resultsCandidates.forEach( (pushes,keyArray) => pushes.push([keyArray.length, ...args]) );
+  else
+    resultsCandidates.forEach( (pushes,keyArray) => keyArray.push(...args) );
+}
+
+// Make it possible to encrypt the local copy of the results file
+let encryption_public_key;
+export const encryptResults = key => encryption_public_key = key;
+// Overwrite __SendResults__ to insert manual download of results
+gotRunningOrder.then(()=>{
+  const oldInit = jQuery.ui.__SendResults__.prototype._init;
+  let t;  // This will be updated by each SendResults, so it will refer appropriately in JSON.stringify (overwritten only once)
+  jQuery.ui.__SendResults__.prototype._init = function(){
+    t = this;
+    const oldCallback = t.options._finishedCallback, oldStringify = JSON.stringify;
+    t.downloadResults = t.downloadResults || document.createElement("P");
+    t.clickedDownload = t.clickedDownload || new Promise(r=>null);
+    // Only overwrite JSON.stringify once
+    if (allResults===undefined) JSON.stringify = function(...args){
+      if (args.length==1 && args[0] instanceof Array && args[0].length==6 && 
+          args[0][0]===false && args[0][3] instanceof Array && resultsCandidates.has(args[0][3])) {
+        // The first time JSON.stringify is called, set allResults
+        if (allResults===undefined){
+          // We have now identified allResults: delete all other candidates and add the pending pushes
+          resultsCandidates.forEach( (pushes,keyArray) => keyArray!=args[0][3] && resultsCandidates.delete(keyArray) );
+          const pushes = resultsCandidates.get(args[0][3]);
+          let offset = 0;
+          pushes.forEach( p => {
+            const toPush = p.slice(1,);
+            args[0][3].splice(offset+p[0],0,...toPush);
+            offset += toPush.length;
+          });
+          allResults = [false,args[0][1],args[0][2],[],args[0][4],args[0][5]];
+        }
+        // Each time JSON.stringify is called, push allResults[3]
+        allResults[3].push(...args[0][3]);
+        // Create a link to let participants download their results
+        if (t.downloadResults.childElementCount==0){
+          const link = document.createElement("A");
+          link.innerHTML = t.options.downloadMessage;
+          link.download = "results_"+args[0][4]+".bak";
+          get_encrypted_blob(oldStringify(allResults),encryption_public_key).then(blob=>{
+            link.href = URL.createObjectURL(blob);
+            t.clickedDownload = new Promise(r=>link.onclick=r);
+            const d = document.createElement("DIV");
+            d.innerText = t.options.contactMessage;
+            t.downloadResults.append(d);
+            t.downloadResults.append(link);
+            if (!t.options.noPrompt) t.element.append(t.downloadResults);
+            const originalEmpty = t.element.empty;
+            t.element.empty = function(){
+              const r = originalEmpty.call(this);
+              if (!t.options.noPrompt) t.element.append(t.downloadResults);
+              return r;
+            }
+          });
+        }
+      }
+      return oldStringify(...args);
+    }
+    t.options._finishedCallback = async function() { 
+      if (!t.options.noPrompt) {
+        t.element.append(t.downloadResults);
+        await t.clickedDownload;
+      }
+      // These results have been sent, delete them from array
+      const resultLines = resultsCandidates.keys().next().value;
+      resultLines.splice(0,resultLines.length);
+      oldCallback.call(t);
+    }; 
+    return oldInit.call(t); 
+  }
+});
+
+export const trials = {
+  all: [],
+  running: null,
+  constructing: new Trial(),
+  pushDirectlyToResults: pushDirectlyToResults
+};
+Object.defineProperty(trials,'current',{get(){ return trials.running||trials.constructing }});

@@ -91,3 +91,32 @@ export async function upload(url,filename,file,mimeType){
 
 const su = () => (((1+Math.random())*0x10000) | 0).toString(16).substring(1);
 export const uuid = ()=> [su(),su(),'-',su(),'-4',su().substr(0,3),'-',su(),'-',su(),su(),su()].join('').toLowerCase();
+
+export const get_encrypted_blob = async (str,exported_key) => {
+  if (exported_key===undefined) return new Blob([str], { type: "text/plain" });
+  if (!window.crypto || !window.crypto.subtle || 
+      !window.crypto.subtle.importKey || !window.crypto.subtle.exportKey || !window.crypto.subtle.generateKey || 
+      !window.crypto.subtle.encrypt || !window.crypto.getRandomValues) 
+    return new Blob([str], { type: "text/plain" });
+  if ( typeof(exported_key.alg) != "string" || typeof(exported_key.e) != "string" ||
+       typeof(exported_key.kty) != "string" || typeof(exported_key.n) != "string" ||
+       typeof(exported_key.ext) != "boolean" || !(exported_key.key_ops instanceof Array) ) {
+    window.console.error("Invalid public key passed for encryption");
+    return new Blob([str], { type: "text/plain" });
+  }
+  const public_rsa = await window.crypto.subtle.importKey(
+    "jwk", exported_key,
+    {name: "RSA-OAEP",modulusLength: 4096,publicExponent: new Uint8Array([1, 0, 1]),hash: "SHA-256",},
+    true, ["encrypt"]
+  );
+  const aes = await window.crypto.subtle.generateKey({name:"AES-GCM",length:256},true,["encrypt", "decrypt"]);
+  const exported_aes = await window.crypto.subtle.exportKey("raw", aes);
+  const encrypted_aes = await window.crypto.subtle.encrypt({name: "RSA-OAEP"},public_rsa,exported_aes);
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const message = await window.crypto.subtle.encrypt({name: "AES-GCM",iv:iv},aes,new TextEncoder().encode(str));
+  const concat_array = new Uint8Array(iv.length + encrypted_aes.byteLength + message.byteLength);
+  concat_array.set(new Uint8Array(iv), 0); // = 12
+  concat_array.set(new Uint8Array(encrypted_aes), iv.byteLength); // = 512
+  concat_array.set(new Uint8Array(message),iv.byteLength + encrypted_aes.byteLength);
+  return new Blob([concat_array], { type: "application/octet-stream" });
+}
