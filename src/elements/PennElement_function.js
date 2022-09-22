@@ -3,10 +3,8 @@ window.PennController._AddElementType('Function', function (PennEngine){
     if (name===undefined) name = "Function";
     if (fn===undefined) fn = name;
     this._function = (fn instanceof Function?fn:()=>undefined);
-    console.log("initialized function with", this._function);
   }
   this.uponCreation = async function(r){ 
-    console.log("uponCreation function with", this._function);
     r(); 
   }
   this.end = async function(){ return; }
