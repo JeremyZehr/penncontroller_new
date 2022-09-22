@@ -1,12 +1,14 @@
 (()=>{
 
-const FIXATIONTIME = 3000;
-
 const waitDuration = d => {
   let start;
   return new Promise(r=>(function wait(t){start=start||t; if (t-start>=d) r(); else window.requestAnimationFrame(wait);})());
 }
 
+let FixationTime = 3000;
+window.PennController.newTrial.SetETFixationTime = t => FixationTime=isNaN(t)||t<0?FixationTime:FixationTime=t;
+let LeewayPx = 100;
+window.PennController.newTrial.SetETLeeway = px => LeewayPx=isNaN(px)||px<0?LeewayPx:px;
 let trackerURL;
 window.PennController.newTrial.EyeTrackerURL = url => trackerURL=url;
 let webgazerLibrary = "https://cdn.jsdelivr.net/gh/penncontroller/penncontroller/releases/latest/webgazer.min.js";
@@ -40,7 +42,7 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
   const calibrationDiv = document.createElement("DIV");
   Object.entries({position:'absolute',top:0,left:0,width:'100vw',height:'100vh'}).forEach( s => calibrationDiv.style[s[0]]=s[1] );
   let lastCalibrationScore = 0;
-  let currentEyeTrackerElement;
+  let currentETElement;
   let moveEvent, clickEvent;
   let detectedFace = false, storePoints = false;
 
@@ -55,14 +57,13 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     console.log("start setTracker");
     webgazer.params.saveDataAcrossSessions = false;
     past50Array[0] = []; past50Array[1] = [];
-    webgazer.saveDataAcrossSessions(false)
-            .setRegression('ridge')
-            .applyKalmanFilter(true)
-            .setGazeListener((data, clock) => {
+    if (webgazer.saveDataAcrossSessions instanceof Function) webgazer.saveDataAcrossSessions(false)
+    if (webgazer.applyKalmanFilter instanceof Function) webgazer.applyKalmanFilter(true);
+    webgazer.setRegression('ridge').setGazeListener((data, clock) => {
       if (data instanceof Promise) data.then( d=>parseData(d,clock) );
       else if (data && data.x) parseData(data,clock);
     });
-    // webgazer.params.showVideoPreview = true;
+    webgazer.params.showVideoPreview = true;
     setEvents();  // The next addEventListener(mousemove/click) will be webgazer's, as triggered by begin below
     webgazer.begin();
     webgazer.removeMouseEventListeners();
@@ -83,11 +84,10 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     if (storePoints){
       past50Array[0].push(data.x);
       past50Array[1].push(data.y);
-      if (past50Array[0].length>50) past50Array[0].shift();
-      if (past50Array[1].length>50) past50Array[1].shift();
+      while (past50Array[0].length>50) past50Array[0].shift();
+      while (past50Array[1].length>50) past50Array[1].shift();
     }
-    if (currentEyeTrackerElement instanceof PennEngine.Element)
-      currentEyeTrackerElement.dispatchEvent("data", data, clock);
+    if (currentETElement instanceof PennEngine.Element) currentETElement.dispatchEvent("data", data, clock);
   };
   const setEvents = ()=>{ // Captures the mousemove and click handlers
     if (moveEvent instanceof Function && clickEvent instanceof Function) return;
@@ -127,7 +127,7 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
       let start;
       (function wait(t){
         if (start===undefined) start=t;
-        if (t-start>=FIXATIONTIME) r();
+        if (t-start>=FixationTime) r();
         else {
           clickEvent({clientX:bcr.x+bcr.width/2,clientY:bcr.y+bcr.height/2});
           window.requestAnimationFrame(wait);
@@ -136,14 +136,13 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     });
     webgazer.removeMouseEventListeners();
   }
-  const validateFixation = async threshold => {
-    console.log("start validateFixation");
+  const scoreFixation = async () => {
+    console.log("start scoreFixation");
     await waitDuration(1000); // Wait 1s
-    if (isNaN(threshold)) threshold = 0;
-    else threshold = Math.min(100,Math.max(0,Number(threshold)));
     [...calibrationDiv.children].forEach(n=>n.remove());
     const dot = printDot("50vw","50vh","-50%","-50%");
-    const hWidth = window.innerWidth, hHeight = window.innerHeight, minDim = Math.min(window.innerWidth,window.innerHeight);
+    // const hWidth = window.innerWidth, hHeight = window.innerHeight, minDim = Math.min(window.innerWidth,window.innerHeight);
+    const bcr = dot.getBoundingClientRect();
     console.log("before fixateDot");
     storePoints = true;
     await fixateDot(dot);
@@ -151,15 +150,29 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     const len = Math.min(past50Array[0].length,past50Array[1].length);
     const scores = Array(len);
     for (let i=0; i<len; i++) {
-      const distance = Math.sqrt( Math.pow(hWidth/2-past50Array[0][i],2) + Math.pow(hHeight/2-past50Array[1][i],2) );
-      scores[i] = 100 - Math.min(101,Math.pow(1.016,distance)) + 1;
+      const x = past50Array[0][i], y = past50Array[1][i];
+      // const distance = Math.sqrt( Math.pow(hWidth/2-x,2) + Math.pow(hHeight/2-y,2) );
+      // scores[i] = 100 - Math.min(101,Math.pow(1.017,distance)) + 1; // score gets exponentially worse the further from target
+      scores[i] = bcr.x-LeewayPx<=x && x<=bcr.x+bcr.width+LeewayPx && bcr.y-LeewayPx<=y && y<=bcr.y+bcr.height+LeewayPx;
     }
-    const score = scores.reduce((a,b)=>a+b,0)/scores.length;
-    console.log("score", score);
-    if (score>=threshold) return true;
-    else return false;
+    // const score = scores.reduce((a,b)=>a+b,0)/scores.length;
+    const score = 100*scores.reduce((a,b)=>a+b,0)/scores.length;
+    // console.log("score", score);
+    console.log(`Percentage of gaze estimates falling within a ${LeewayPx}px leeway around the dot: ${score}`);
+    // if (score>=threshold) return true;
+    // else return false;
+    return score;
+  }
+  const showFailedCalibrationMessage = (threshold,score)=>{
+    [...calibrationDiv.children].forEach(c=>c.remove());
+    const message = document.createElement("P");
+    message.innerText = `The eye-tracker could place ${score}% of your eye-gazes within a ${LeewayPx}px area surrounding the central dot, `+
+      `which does not meet the target threshold of ${threshold}%. We will go through another round of calibration. Please click anywhere to start.`;
+    Object.entries({position:'absolute',top:'50vh',left:'50vw',transform:'translate(-50%,-50%)'}).forEach( s => message.style[s[0]]=s[1] );
+    calibrationDiv.append(message);
   }
   const calibrate = async (threshold,attempts) => {
+    threshold = (isNaN(threshold)?0:Math.min(100,Math.max(0,Number(threshold))))
     showTracker(true);
     document.body.append(calibrationDiv);
     console.log("start calibrate, detected face?", detectedFace);
@@ -172,7 +185,10 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     let calibrated = false;
     webgazer.clearData();
     showTracker(false);
-    if (lastCalibrationScore>=threshold) calibrated = await validateFixation(threshold);
+    if (lastCalibrationScore>=threshold) {
+      const score = await scoreFixation();
+      calibrated = score >= threshold;
+    }
     while (calibrated===false && attempts>0) {
       attempts--;
       [...calibrationDiv.children].forEach(n=>n.remove());
@@ -207,10 +223,14 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
         dot.remove();
       }
       console.log("calibration phase over, now moving on to validateFixaiton");
-      calibrated = await validateFixation(threshold);
-      // if (attempts>0) showFailedCalibrationMessage();
-      calibrationDiv.remove();
+      const score = await scoreFixation();
+      calibrated = score >= threshold;
+      if (!calibrated && attempts>0) {
+        showFailedCalibrationMessage(threshold,score);
+        await new Promise(r=>calibrationDiv.addEventListener("click",r));
+      }
     }
+    calibrationDiv.remove();
   }
 
   this.immediate = function(name,span,proportion){ 
@@ -227,7 +247,7 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     this._lookedAtNode = undefined;
     this._lastClock = undefined;
     this.addEventListener("data", (data,clock)=>{
-      if (!this.enabled || data==null || data.x===undefined || data.y===undefined) return;
+      if (this._disabled || data==null || data.x===undefined || data.y===undefined) return;
       this._lookedAtNode = undefined;
       this._elements.forEach(e=>{
         const node = e.node;
@@ -258,36 +278,33 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     r();
   }
   this.end = async function(){ 
-    
+    showTracker(false);
+    webgazer.removeMouseEventListeners();
+    currentETElement = undefined;
     return;
   }
   this.value = async function () { return undefined; }
   this.actions = {
-    add: async function(r,...refs){
+    $add: async function(r,...refs){
       for (let i=0; i<refs.length; i++) {
-        if (refs[i] instanceof Commands) await refs[i].call();
-        const target = {target: refs[i], gazes: []};
+        let ref = refs[i];
+        if (refs[i] instanceof PennEngine.Commands) await refs[i].call();
+        else if (refs[i] instanceof Function) ref = await refs[i].call();
+        const target = {target: ref, gazes: []};
         // Use a proxy to return a node regardless of the nature of refs[i]
-        return new Proxy(target, { get(t,p){ 
+        this._elements.push( new Proxy( target , {get(t,p){ 
           if (p!="node") return t[p];
-          else if (refs[i] instanceof Node) return refs[i];
-          else if (refs[i] instanceof PennEngine.Commands) 
-            return (refs[i]._element._nodes||{main: document.createElement("span")}).main;
-        } });
+          else if (ref instanceof Node) return ref;
+          else if (ref instanceof PennEngine.Commands && ref._element._nodes) return ref._element._nodes.main;
+          else return document.createElement("span");
+        }} ) );
       }
       r(); 
     },
-    calibrate: async function(r,threshold,attempts){ 
-      currentEyeTrackerElement = this;
-      await calibrate(threshold,attempts); 
-      r(); 
-    },
-    showFeedback: function(r) {
-      showTracker(true);
-      r();
-    },
-    start: function(r){ currentEyeTrackerElement = this; r(); },
-    stop: function(r){ currentEyeTrackerElement = undefined; r(); }
+    calibrate: async function(r,threshold,attempts){ await calibrate(threshold,attempts); r(); },
+    showFeedback: function(r) { showTracker(true); r(); },
+    start: function(r){ currentETElement = this; r(); },
+    stop: function(r){ currentETElement = undefined; r(); }
   }
   this.test = {
     looking: async function(element){
@@ -301,7 +318,7 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
         }
       }
     },
-    ready: function(){ return window.webgazer!==undefined; }
+    ready: function(){ return window.webgazer!==undefined && webgazer.isReady(); }
   }
 });
 
