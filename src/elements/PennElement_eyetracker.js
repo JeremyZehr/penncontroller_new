@@ -5,10 +5,13 @@ const waitDuration = d => {
   return new Promise(r=>(function wait(t){start=start||t; if (t-start>=d) r(); else window.requestAnimationFrame(wait);})());
 }
 
+const XpName = window.location.href.replace(/[^/]+$/,'').replace(/[^\w\d]/g,'').replace(/[\.]{2,}/g,'');
+let SessionID;
+
 let FixationTime = 3000;
-window.PennController.newTrial.SetETFixationTime = t => FixationTime=isNaN(t)||t<0?FixationTime:FixationTime=t;
+window.PennController.newTrial.SetETFixationTime = t => FixationTime=isNaN(t)||t<200?FixationTime:t;
 let LeewayPx = 50;
-window.PennController.newTrial.SetETLeeway = px => LeewayPx=isNaN(px)||px<0?LeewayPx:px;
+window.PennController.newTrial.SetETLeeway = px => LeewayPx=isNaN(px)||px<1?LeewayPx:px;
 let trackerURL;
 window.PennController.newTrial.EyeTrackerURL = url => trackerURL=url;
 let webgazerLibrary = "https://cdn.jsdelivr.net/gh/penncontroller/penncontroller/releases/latest/webgazer.min.js";
@@ -16,16 +19,24 @@ window.PennController.newTrial.WebgazerURL = url => webgazerLibrary=url;
 let failedCalibrationMessage = "The eye-tracker could place <span class='score'></span>% of your eye-gazes "+
                                "within a <span class='leeway'></span>px area surrounding the central dot, "+
                                "which does not meet the target threshold of <span class='threshold'></span>%. "+
+                               "Make sure you are in a well-lit setting, that your keep your head at a constant angle, "+
+                               "that you are not wearing glasses and that there is no moving object in the background. "+
                                "We will go through another round of calibration. Please click anywhere to start.";
+window.PennController.newTrial.FailedCalibrationMessage = message => failedCalibrationMessage = message;
+let faceDetectionMessage = "Please wait until your face appears in the top-left corner of the page overlaid with green lines and dots, and then click anywhere to proceed";
+window.PennController.newTrial.FaceDetectionMessage = message => faceDetectionMessage = message;
 
 const oldResetPrefix = window.PennController.newTrial.ResetPrefix;
 window.PennController.newTrial.ResetPrefix = function(prefix){
   const o = (prefix?window[prefix]:window);
-  ['SetETFixationTime','SetETLeeway','EyeTrackerURL','WebgazerURL'].forEach(v=>o[v]=window.PennController.newTrial[v]);
+  ['SetETFixationTime','SetETLeeway','EyeTrackerURL','WebgazerURL','FailedCalibrationMessage','FaceDetectionMessage']
+    .forEach(v=>o[v]=window.PennController.newTrial[v]);
   return oldResetPrefix.call(this,prefix);
 }
 
 window.PennController._AddElementType('EyeTracker', function (PennEngine){
+
+  SessionID = PennEngine.utils.uuid();
 
   // Compression algorithm: since every data point is a 0 (gaze off) or a 1 (gaze on)
   // group them in sequences of 7 and do String.fromCharCode(parseInt(SEQ,2))
@@ -66,7 +77,7 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
   const showFaceDetectionMessage = () => {
     [...calibrationDiv.children].forEach(c=>c.remove());
     const message = document.createElement("P");
-    message.innerText = "Please wait until your face appears with green overlays in the top-left corner of the page, and then click anywhere to proceed";
+    message.innerText = faceDetectionMessage;
     Object.entries({position:'absolute',top:'50vh',left:'50vw',transform:'translate(-50%,-50%)'}).forEach( s => message.style[s[0]]=s[1] );
     calibrationDiv.append(message);
   }  
@@ -139,19 +150,19 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
   }
   const fixateDot = async dot => {
     const bcr = dot.getBoundingClientRect();
-    webgazer.addMouseEventListeners();
+    // webgazer.addMouseEventListeners();
     await new Promise(r=>{
       let start;
       (function wait(t){
         if (start===undefined) start=t;
-        if (t-start>=FixationTime) r();
+        if (t-start>=FixationTime-200) r();
         else {
           clickEvent({clientX:bcr.x+bcr.width/2,clientY:bcr.y+bcr.height/2});
           window.requestAnimationFrame(wait);
         }
       })();
     });
-    webgazer.removeMouseEventListeners();
+    // webgazer.removeMouseEventListeners();
   }
   const scoreFixation = async () => {
     console.log("start scoreFixation");
@@ -161,6 +172,7 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     // const hWidth = window.innerWidth, hHeight = window.innerHeight, minDim = Math.min(window.innerWidth,window.innerHeight);
     const bcr = dot.getBoundingClientRect();
     console.log("before fixateDot");
+    await waitDuration(200);
     storePoints = true;
     await fixateDot(dot);
     storePoints = false;
@@ -183,7 +195,10 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
   const showFailedCalibrationMessage = (threshold,score)=>{
     [...calibrationDiv.children].forEach(c=>c.remove());
     const message = document.createElement("DIV");
-    message.innerHTML = failedCalibrationMessage;
+    if (typeof(failedCalibrationMessage)=="string" && String.match(/\.html?$/i))
+      message.innerHTML = window.htmlCodeToDOM({include: message}).innerHTML;
+    else
+      message.innerHTML = failedCalibrationMessage;
     message.querySelectorAll("span.score").forEach(n=>n.innerText=score);
     message.querySelectorAll("span.threshold").forEach(n=>n.innerText=threshold);
     message.querySelectorAll("span.leeway").forEach(n=>n.innerText=LeewayPx);
@@ -239,11 +254,14 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
         console.log(`dot #${i+1}, printing at ${p.x}:${p.y}`);
         const dot = printDot(p.x,p.y,p.tX,p.tY);
         beep.play();
+        await waitDuration(200);  // Allow for 200ms to place gaze
         await fixateDot(dot);
         dot.remove();
       }
+      showTracker(true);
       console.log("calibration phase over, now moving on to validateFixaiton");
       const score = await scoreFixation();
+      showTracker(false);
       calibrated = score >= threshold;
       if (!calibrated && attempts>0) {
         showFailedCalibrationMessage(threshold,score);
@@ -261,6 +279,8 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
   let init = false;
   this.uponCreation = async function(r){
     if (!init) (function setWhenReady(){ if (window.webgazer) setTracker(); else window.requestAnimationFrame(setWhenReady); })();
+    this._calibrated = false;
+    this._trainOnMouseMove = false;
     this._counts = {};
     this._elements = [];
     this._times = [];
@@ -304,28 +324,35 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     webgazer.removeMouseEventListeners();
     currentETElement = undefined;
     if (this._log) {
-      this.log("Event", "Start", this._startTime);
-      const mid = Math.floor((this._stopTime + this._stopTime) / 2);
+      this.log("StartTracking","Time",this._startTime);
+      const log = (param,value,time) => {
+        if (typeof(trackerURL)=="string" && trackerURL.match(/^https?:/i)){
+          const data = {experiment:XpName,id:SessionID,pcnumber:PennEngine.order.current.id,parameter:param,value:value};
+          const xhr = new XMLHttpRequest();     // XMLHttpRequest rather than jQuery's Ajax (mysterious CORS problems with jQuery 1.8)
+          xhr.open('POST', trackerURL, true);
+          xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+          xhr.onreadystatechange = ()=>xhr.status!=200 && this.log("Upload", "Error", Date.now(), param);
+          xhr.send("json="+JSON.stringify(data));
+        }
+        else this.log(param,value,time);
+      }
       this._elements.forEach(e=>{
         const bits = e.gazes.map(v=>Number(v)).join('');
-        this.log(
+        log(
           e.target instanceof PennEngine.Commands?e.target._element._name:(e.target instanceof Node?e.target.id||e.target.nodeName:"NA"),
           bits.length % 7 + '.' + bits.replace(/\d{1,7}/g,v=>String.fromCharCode(parseInt(v,2)+45)),
-          mid,
-          "NULL"
+          this._startTime
         );
       });
-      this.log(
+      log(
         "Times",
         this._times.map(n=>[...Array(Math.floor(n/209))].map(v=>"ÿ").join('')+String.fromCharCode(n%209+45)).join(''),
-        Date.now(),
-        "NULL"
+        this._startTime
       );
-      this.log("Event", "Stop", this._stopTime);
     }
     return;
   }
-  this.value = async function () { return undefined; }
+  this.value = async function () { return this._name; }
   this.actions = {
     $add: async function(r,...refs){
       for (let i=0; i<refs.length; i++) {
@@ -343,12 +370,36 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
       }
       r(); 
     },
-    calibrate: async function(r,threshold,attempts){ await calibrate(threshold,attempts); r(); },
+    calibrate: async function(r,threshold,attempts){ await calibrate(threshold,attempts); this._calibrated = true; r(); },
+    $callback: async function(r,...commands) {
+      this.addEventListener("data", async (data,clock)=>{
+        for (let i=0; i<commands.length; i++){
+          const command = commands[i];
+          if (command instanceof PennEngine.Commands) await command.call();
+          else if (command instanceof Function) await command.call(data.x,data.y,clock);
+        }
+      });
+      r();
+    },
+    hideFeedback: function(r){ showTracker(false); r(); },
     showFeedback: function(r) { showTracker(true); r(); },
     start: function(r){ currentETElement = this; this._startTime = Date.now(); r(); },
-    stop: function(r){ currentETElement = undefined; this._stopTime = Date.now(); r(); }
+    stop: function(r){ currentETElement = undefined; this._stopTime = Date.now(); r(); },
+    stopTraining: function(r){ webgazer.removeMouseEventListeners(); r(); },
+    train: function(r,showDot){ 
+      webgazer.addMouseEventListeners();
+      if (!this._trainOnMouseMove) document.removeEventListener("mousemove", moveEvent, true);
+      if (showDot) showTracker(true); 
+      r(); 
+    },
+    trainOnMouseMove: function(r,yesNo){
+      if (yesNo===false) { this._trainOnMouseMove = false; document.removeEventListener("mousemove", moveEvent, true); } 
+      else this._trainOnMouseMove = true;
+      r();
+    }
   }
   this.test = {
+    calibrated: function(){ return this._calibrated; },
     looking: async function(element){
       if (!(this._lookedAtNode instanceof Node)) return false;
       else if (element===undefined) return true;

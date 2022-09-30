@@ -28,10 +28,11 @@ const cssCommandOnNode = async function (node, ...args) {
 PennEngine.cssCommandOnNode = cssCommandOnNode;
 // updatePrints keeps track of latest print parameters to keep "update" up to date(!)
 const updatePrints = new Map();
-const applyCoordinates = (x,y,element,container) => {
+const applyCoordinates = async (x,y,element,container,callback) => {
   updatePrints.set(element, {x:x,y:y,container:container});
   let bcr;  // BoundingClientRect of the container
-  const update = ()=>{
+  const update = async r=>{
+    if (!(callback instanceof Function)) r();
     const updatePrint = updatePrints.get(element);
     if (updatePrint===undefined) return;
     x=updatePrint.x;
@@ -86,31 +87,56 @@ const applyCoordinates = (x,y,element,container) => {
     // if (transform.length) element.style.transform = transform.join(" ");
     element.style.transform = transform.join(" ");
     element.style.position = 'absolute';
+    let dispatch = !isPrinted(element);
     container.append(element);
+    if (dispatch && callback instanceof Function) {
+      await callback();
+      r();
+    }
     window.requestAnimationFrame(update);
   };
-  update();
+  return new Promise(r=>update(r));
 }
 const processComplexPrint = async function (...args) {
   const evaledArguments = await PennEngine.evalArguments.call([...args]);
-  let coordinates = [], where;
+  let coordinates = [], where, beforeOrAfter;
   [...args, ...evaledArguments].forEach(v=>{
     if (typeof(v)=="number"||(typeof(v)=="string"&&v.match(coordRegex))) coordinates.push(v);
     else if (v instanceof Commands) where = v;
+    else if (typeof(v)=="string"&&v.match(/^(before|after)$/i)) beforeOrAfter = v.toLowerCase();
   });
   if (coordinates.length==0) updatePrints.set(this._nodes.parent, undefined);
   if (where){
+    const addBeforeOrAfterToWhere = ()=> {
+      const whereNodes = where._element._nodes;
+      whereNodes[beforeOrAfter] = (whereNodes[beforeOrAfter]||document.createElement("DIV"));
+      whereNodes[beforeOrAfter].classList.add(beforeOrAfter);
+      if (beforeOrAfter=='before') whereNodes.parent.prepend(whereNodes[beforeOrAfter]);
+      else whereNodes.parent.append(whereNodes[beforeOrAfter]);
+    };
     const isWherePrinted = isPrinted((where._element._nodes||{}).main);
     if (coordinates.length){
-      if (isWherePrinted)
-        applyCoordinates(coordinates[0],coordinates[1],this._nodes.parent,where._element._nodes.main);
-      else
-        where._element.addEventListener("print",
-          ()=>applyCoordinates(coordinates[0],coordinates[1],this._nodes.parent,where._element._nodes.main) );
+      const ac = async ()=>{
+        if (beforeOrAfter) addBeforeOrAfterToWhere();
+        await applyCoordinates(
+          coordinates[0],
+          coordinates[1],
+          this._nodes.parent,
+          beforeOrAfter?where._element._nodes[beforeOrAfter]:where._element._nodes.main,
+          ()=>this.dispatchEvent("print", ...args)
+        );
+      };
+      if (isWherePrinted) await ac();
+      else where._element.addEventListener("print",ac);
     }
     else{
-      if (isWherePrinted) where._element._nodes.main.append( this._nodes.parent );
-      else where._element.addEventListener("print",()=>where._element._nodes.main.append( this._nodes.parent ));
+      const ap = async ()=>{
+        if (beforeOrAfter) addBeforeOrAfterToWhere();
+        (beforeOrAfter?where._element._nodes[beforeOrAfter]:where._element._nodes.main).append( this._nodes.parent );
+        await this.dispatchEvent("print", ...args);
+      };
+      if (isWherePrinted) await ap();
+      else where._element.addEventListener("print",ap);
     }
   }
   else {
@@ -120,31 +146,49 @@ const processComplexPrint = async function (...args) {
     if (!(where instanceof Node)) where = undefined;
     if (coordinates.length){
       if (!where) where = document.body;
-      applyCoordinates(coordinates[0],coordinates[1],this._nodes.parent,where);
+      await applyCoordinates(coordinates[0],coordinates[1],this._nodes.parent,where,()=>this.dispatchEvent("print", ...args));
     }
     else{
       if (!where) where = trials.current._node;
       where.append(this._nodes.parent);
+      await this.dispatchEvent("print", ...args);
     }
   }
 };
 const printBeforeOrAfter = async function(r,beforeOrAfter,what){
-  this._nodes[beforeOrAfter] = (this._nodes[beforeOrAfter]||document.createElement("DIV"));
-  this._nodes[beforeOrAfter].classList.add(beforeOrAfter);
+  let once = false;
   if (what instanceof Commands) await what.call();  // If commands, run them now
-  const c = async ()=>{
-    if (!isPrinted((this._nodes||{}).parent)) return;
-    if (beforeOrAfter=='before') this._nodes.parent.prepend(this._nodes[beforeOrAfter]);
-    else this._nodes.parent.append(this._nodes[beforeOrAfter]);
-    // If commands (ie reference to element) then create new *empty* commands so as to only stack "print," and run it
-    if (what instanceof Commands) await what._element._commands.print(this._nodes[beforeOrAfter]).call();
+  const callback = async ()=>{
+    if (once) return;
+    if (what instanceof Commands) await what._element._commands.print(this._commands,beforeOrAfter).call();
     else {
       if (what instanceof Function) what = await what();
-      this._nodes[beforeOrAfter].append(what);
+      const thisNodes = this._element._nodes;
+      thisNodes[beforeOrAfter] = (thisNodes[beforeOrAfter]||document.createElement("DIV"));
+      thisNodes[beforeOrAfter].classList.add(beforeOrAfter);
+      if (beforeOrAfter=='before') thisNodes.parent.prepend(thisNodes[beforeOrAfter]);
+      else thisNodes.parent.append(thisNodes[beforeOrAfter]);
     }
-  };
-  this.addEventListener("print", c);
-  if (isPrinted((this._nodes||{}).parent)) await c();
+    once = true;
+  }
+  if (isPrinted((this._nodes||{}).parent)) await callback();
+  else this.addEventListener("print",callback);
+//   this._nodes[beforeOrAfter] = (this._nodes[beforeOrAfter]||document.createElement("DIV"));
+//   this._nodes[beforeOrAfter].classList.add(beforeOrAfter);
+//   if (what instanceof Commands) await what.call();  // If commands, run them now
+//   const c = async ()=>{
+//     if (!isPrinted((this._nodes||{}).parent)) return;
+//     if (beforeOrAfter=='before') this._nodes.parent.prepend(this._nodes[beforeOrAfter]);
+//     else this._nodes.parent.append(this._nodes[beforeOrAfter]);
+//     // If commands (ie reference to element) then create new *empty* commands so as to only stack "print," and run it
+//     if (what instanceof Commands) await what._element._commands.print(this._nodes[beforeOrAfter]).call();
+//     else {
+//       if (what instanceof Function) what = await what();
+//       this._nodes[beforeOrAfter].append(what);
+//     }
+//   };
+//   this.addEventListener("print", c);
+//   if (isPrinted((this._nodes||{}).parent)) await c();
   r();
 };
 
@@ -161,7 +205,7 @@ export const standardCommands = {
       this._nodes.parent.style.display = 'flex';
       this._nodes.parent.append(this._nodes.main);
       await processComplexPrint.call(this, ...args);
-      await this.dispatchEvent("print", ...args);
+      // await this.dispatchEvent("print", ...args);
       this.addEventListener("_end",()=>{
         if (this._nodes) {  // Make sure to remove all printed content when the trial ends
           if (this._nodes.before instanceof Node) this._nodes.before.remove();
@@ -180,7 +224,6 @@ export const standardCommands = {
   },
   settings: {
     addClass: async function(r,cl) {
-      const d = Date.now();
       const f = ()=>{
         if (this._nodes){
           if (this._nodes.main instanceof Node) this._nodes.main.className += " "+cl;

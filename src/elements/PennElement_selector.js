@@ -143,25 +143,43 @@ window.PennController._AddElementType('Selector', function (PennEngine){
       r();
     },
     keys: function(r,...keys){ r(this._keys = keys); },
-    $shuffle: async function(r,...cs) {
-      for (let i=0; i < cs.length; i++)
-        if (cs[i] instanceof PennEngine.Commands){
-          await cs[i].call();
-          const idx = this._elements.findIndex(el=>el==cs[i]._element);
-          if (idx>=0) cs[i] = idx;
+    $shuffle: async function(r,...refs) {
+      for (let i=0; i < refs.length; i++)
+        if (refs[i] instanceof PennEngine.Commands){
+          await refs[i].call();
+          const idx = this._elements.findIndex(el=>el==refs[i]._element);
+          if (idx>=0) refs[i] = idx;
         }
-      if (cs.length==0) cs = this._elements.map((v,i)=>i);
-      let shuffledIndices = [...cs];
+        else if (refs[i] instanceof Function)
+          refs[i] = await refs[i].call();
+      if (refs.length==0) refs = this._elements.map((v,i)=>i);
+      refs = refs.filter( n => !isNaN(n) && n >= 0 && n < this._elements.length );
+      let shuffledIndices = [...refs];
       window.fisherYates(shuffledIndices);
       const copyElements = [...this._elements], printCommands = [];
-      cs.forEach( (idx,i) => {
+      refs.forEach( (idx,i) => {
         const original = copyElements[idx], replacer = copyElements[shuffledIndices[i]];
         this._elements[idx] = replacer;
         if (original._nodes && document.body.contains(original._nodes.main))
-          printCommands.push(replacer._commands.print( ...this._prints.get(original) ));
+          printCommands.push({toPrint:replacer,args:[...this._prints.get(original)]});
       });
-      for (let i=0; i < printCommands.length; i++)
-        await printCommands[i].call();
+      refs.forEach( idx => {
+        const nodes = this._elements[idx]._nodes;
+        if (nodes.parent instanceof Node) nodes.parent.remove();
+        else if (nodes.main instanceof Node) nodes.main.remove();
+      });
+      for (let i=0; i<printCommands.length; i++){
+        const commandRef = printCommands[i].toPrint._commands, printArgs = printCommands[i].args;
+        for (let n=0; n<printArgs.length; n++){
+          if (!(printArgs[n] instanceof PennEngine.Commands)) continue;
+          const ref = this._elements.indexOf(printArgs[n]._element);
+          if (ref>=0) {
+            const indexInShuffledIndices = shuffledIndices.indexOf(ref);
+            if (indexInShuffledIndices>=0) printArgs[n] = this._elements[refs[indexInShuffledIndices]]._commands;
+          }
+        }
+        await commandRef.print(...printArgs).call();
+      }
       r();
     }
   }
