@@ -1,4 +1,5 @@
 export const zip = require("@zip.js/zip.js");
+import { debug } from './debug';
 
 const resources = [], extractedFiles = {};
 

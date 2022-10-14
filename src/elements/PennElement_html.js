@@ -44,6 +44,8 @@ window.PennController._AddElementType('Html', function (PennEngine){
       };
       for (let o in this._options) os[o] = this._options[o];
       window.jQuery(this._nodes.main).Form(os);
+      if (this._eventListeners.finishedCallback===undefined)
+        this._nodes.main.querySelector("a.Message-continue-link").style.display = 'none';
     });
     r();
   }
@@ -57,6 +59,8 @@ window.PennController._AddElementType('Html', function (PennEngine){
     inputWarning: function(r,t){ this._obligatoryErrorGenerator = f=>t.replace(/%name%/g,f); r(); },
     radioWarning: function(r,t){ this._obligatoryRadioErrorGenerator = f=>t.replace(/%name%/g,f); r(); },
     $wait: function(r,t){
+      if (this._nodes.main instanceof Node && document.documentElement.contains(this._nodes.main))
+        this._nodes.main.querySelector("a.Message-continue-link").style.display = 'block';
       let waited = false;
       this.addEventListener("finishedCallback", async ()=>{
         if (waited || (t instanceof Function && !(await t.call()))) return;
@@ -66,11 +70,12 @@ window.PennController._AddElementType('Html', function (PennEngine){
     },
     warn: function(r) { 
       if (incompleteFields.call(this).length==0) return r();
-      this._nodes.main.querySelector("a.Message-continue-link").click();
+      if (this._nodes && this._nodes.main instanceof Node && this._nodes.main.querySelector("a.Message-continue-link"))
+        this._nodes.main.querySelector("a.Message-continue-link").click();
       r();
     }
   }
   this.test = {
-    complete: async function(t){ return incompleteFields.call(this).length>0; }
+    complete: async function(t){ return incompleteFields.call(this).length==0; }
   }
 });

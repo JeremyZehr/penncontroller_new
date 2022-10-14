@@ -11,7 +11,7 @@ class Table {
     this.group_name = 'group';
     this.header = [];
     this.regex = null;
-    const lines = content.split(/[\n\r]/);
+    const lines = content.split(/[\n\r]+/);
     if (lines.length<2) throw Error(`Table ${name} has too few rows (${lines.length}, should be >=2)`);
     // Find the delimiter that outputs the max number of columns
     DELIMITERS.forEach(d=>{

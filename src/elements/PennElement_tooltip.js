@@ -18,47 +18,84 @@ window.PennController._AddElementType('Tooltip', function (PennEngine){
     this.addEventListener("validate", ()=>this._nodes && this._nodes.parent instanceof Node && this._nodes.parent.remove());
     this._keys = undefined;
     document.body.addEventListener("keydown", e=>{
-      if (!this._nodes || !(this._nodes.main instanceof Node) || !document.body.contains(this._nodes.main)) return;
+      if (!this._nodes || !(this._nodes.main instanceof Node) || !document.documentElement.contains(this._nodes.main)) return;
       if (this._keys && PennEngine.utils.keyMatch(e,this._keys)>=0) this.dispatchEvent("validate");
     });
     this._prints = [];
+    this.addEventListener("print", (...args)=>this._prints.push({date: Date.now(), args: args}) );
     this._position = "bottom right";
-    this._refreshDisplay = token => {
-      if (token!=lastPrint || this._nodes===undefined || !document.body.contains(this._nodes.parent)) return;
+    let lastPrint;
+    this._refreshDisplay = async (print,initialStyle,lastBCR,lastTarget) => {
+      if (print!=lastPrint || this._nodes===undefined || !document.documentElement.contains(this._nodes.parent)) return;
       if (this._label.innerText) {
         if (!this._nodes.main.contains(this._label)) this._nodes.main.append(this._label);
         if (this._clicksEnabled) this._label.style.cursor = "pointer";
         else this._label.style.cursor = "unset";
       }
       else this._label.remove();
-      const parent = this._nodes.parent.parentElement, parentBCR = parent.getBoundingClientRect();
-      if (parent.children[0]!==this._nodes.parent) parent.prepend(this._nodes.parent);
-      this._nodes.parent.style.top = "unset";
-      this._nodes.parent.style.left = "unset";
-      let transform = [];
-      if (this._position.match(/bottom/i)) this._nodes.main.style.top = parentBCR.height;
-      else if (this._position.match(/top/i)) transform.push("translateY(-100%)");
-      else if (this._position.match(/middle/i)) {
-        this._nodes.main.style.top = parentBCR.height/2;
-        transform.push("translateY(-50%)");
-      }
-      if (this._position.match(/right/i)) this._nodes.main.style.left = parentBCR.width;
-      else if (this._position.match(/left/i)) transform.push("translateX(-100%)");
-      else if (this._position.match(/center/i)) {
-        this._nodes.main.style.left = parentBCR.width/2;
-        transform.push("translateX(-50%)");
-      }
-      this._nodes.main.style.transform = transform.join(" ");
-      window.requestAnimationFrame(()=>this._refreshDisplay(token));
-    }
-    let lastPrint;
-    this.addEventListener("print", async (...args)=>{
-      lastPrint = {};
-      if (args.length==1 && (args[0] instanceof PennEngine.Commands || args[0] instanceof Node)) {
-        this._nodes.parent.style.width = 0;
-        this._nodes.parent.style.position = 'relative';
-        this._nodes.main.style.width = "max-content";
+      let target = print.find(v=>v instanceof Node);
+      if (target===undefined) target = print.find(v=>v instanceof PennEngine.Commands);
+      if (target instanceof PennEngine.Commands) target = (target._element._nodes||{main:undefined}).main;
+      if (target===undefined) target = print.find(v=>v instanceof Function);
+      if (target instanceof Function) target = await target.call();
+      if (!(target instanceof Node)) return;
+      const targetBCR = target.getBoundingClientRect(), jsonTargetBCR = JSON.stringify(targetBCR);
+      if (lastBCR===undefined || lastTarget===undefined || target!=lastTarget || jsonTargetBCR!=lastBCR) {
+        lastTarget = target;
+        lastBCR = jsonTargetBCR;
+        this._nodes.parent.style.position = 'absolute';
+        this._nodes.parent.style.overflow = 'visible';
+        this._nodes.parent.style.top = targetBCR.top+window.scrollY;
+        this._nodes.parent.style.left = targetBCR.left+window.scrollX;
+        this._nodes.parent.style.width = targetBCR.width;
+        this._nodes.parent.style.height = targetBCR.height;
+        document.documentElement.append(this._nodes.parent);
+        if (initialStyle===undefined){
+          initialStyle = {};
+          const style = this._nodes.main.style;
+          for (let s of style) initialStyle[s] = style[s];
+        }
         this._nodes.main.style.position = 'absolute';
+        let transform = [];
+        if (this._position.match(/top/i)) transform.push("translateY(-100%)");
+        else if (this._position.match(/middle/i)) {
+          this._nodes.main.style.top = targetBCR.height/2;
+          transform.push("translateY(-50%)");
+        }
+        else /*(this._position.match(/bottom/i))*/ this._nodes.main.style.top = targetBCR.height;
+
+        if (this._position.match(/left/i)) {
+          transform.push("translateX(-100%)");
+          this._nodes.main.style.width = targetBCR.left;
+        }
+        else if (this._position.match(/center/i)) {
+          this._nodes.main.style.left = targetBCR.width/2;
+          transform.push("translateX(-50%)");
+          this._nodes.main.style.width = window.innerWidth;
+        }
+        else /* (this._position.match(/right/i)) */ {
+          this._nodes.main.style.left = targetBCR.width;
+          this._nodes.main.style.width = window.innerWidth - targetBCR.right;
+        }
+        this._nodes.main.style.transform = transform.join(" ");
+        this._nodes.main.style['max-width'] = "max-content";
+        for (let s in initialStyle) this._nodes.main.style[s] = initialStyle[s];
+        if (this._frameStyle){
+          this._nodes.parent.style.border = this._frameStyle;
+          const w = this._nodes.parent.style['border-width'];
+          this._nodes.parent.style['margin-left'] = "-"+w;
+          this._nodes.parent.style['margin-top'] = "-"+w;
+          this._nodes.parent.style['pointer-events'] = 'none';
+          this._nodes.main.style['pointer-events'] = 'initial';
+        }
+        this._nodes.parent.style.visibility = 'visible';
+      }
+      window.requestAnimationFrame(()=>this._refreshDisplay(print,initialStyle,lastBCR,lastTarget));
+    }
+    this.addEventListener("print", async (...args)=>{
+      lastPrint = [...args];
+      if (args.length==1 && (args[0] instanceof PennEngine.Commands || args[0] instanceof Node)) {
+        this._nodes.parent.style.visibility = 'hidden';
         this._refreshDisplay(lastPrint);
       }
       else{
@@ -91,8 +128,12 @@ window.PennController._AddElementType('Tooltip', function (PennEngine){
     }
   }
   this.settings = {
+    frame: function(r,style){
+      this._frameStyle = style || "dotted 1px grey";
+      r();
+    },
     key: function(r,keys,noclick){
-      if (keys==undefined) return r();
+      if (keys==undefined) keys="";
       this._keys = [keys];
       if (noclick) {
         this._clicksEnabled = false;

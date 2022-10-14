@@ -5,8 +5,10 @@ window.PennController._AddElementType('Image', function (PennEngine){
     this.addResource(path, async (uri) => {
       const image = document.createElement("IMG");
       image.src = uri;
-      image.style['max-width'] = '100%';
-      image.style['max-height'] = '100%';
+      // image.style['max-width'] = '100%';
+      // image.style['max-height'] = '100%';
+      image.style['width'] = '100%';
+      image.style['height'] = '100%';
       await new Promise(r=>image.onload = r);
       return image;
     })

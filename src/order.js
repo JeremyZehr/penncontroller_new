@@ -53,8 +53,9 @@ const refreshSequence = async () => {
       ulli.innerHTML = `<strong>${(e.type||'No Label').toString()}</strong> (${e.controller.toString()})`;
       ul.append(ulli);
       if (progressBar) {
-        const countsForProgressBar = window.ibex_controller_get_property(e.controller, "countsForProgressBar");
-        if (countsForProgressBar ===  undefined || countsForProgressBar) {
+        const defaultCountsForProgressBar = window.ibex_controller_get_property(e.controller, "countsForProgressBar");
+        if (e.options.countsForProgressBar || 
+            (e.options.countsForProgressBar===undefined&&defaultCountsForProgressBar)) {
           progressTotalPoints++;
           if (i<idx) progressPassedPoints++;
         }

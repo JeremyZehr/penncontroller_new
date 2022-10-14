@@ -19,11 +19,11 @@ window.PennController._AddElementType('Selector', function (PennEngine){
     this._selectedElement = undefined;
     this._clickHandler = e=>{
       if (!this._clicksEnabled) return;
-      const element = this._elements.find(el=>e.target==(el._nodes||{main:undefined}).main);
+      const element = this._elements.find(el=>(el._nodes||{main:document.createElement("p")}).main.contains(e.target));
       if (element===undefined) return;
       this.dispatchEvent("select", element);
     };
-    document.body.addEventListener("click", this._clickHandler);
+    document.body.addEventListener("click", this._clickHandler, true);
     this._keyHandler = e=>{
       const idx = PennEngine.utils.keyMatch(e,this._keys);
       if (idx<0 || idx>this._elements.length) return;
@@ -33,27 +33,27 @@ window.PennController._AddElementType('Selector', function (PennEngine){
     let hoveredElement, oldCursor;
     this._mouseMoveListener = e=>{
       if (hoveredElement===undefined && this._clicksEnabled) {
-        const element = this._elements.find(el=>e.target==(el._nodes||{main:undefined}).main);
+        const element = this._elements.find(el=>(el._nodes||{main:document.createElement("p")}).main.contains(e.target));
         if (element===undefined) return;
         hoveredElement = element;
         oldCursor = hoveredElement._nodes.main.style.cursor;
         hoveredElement._nodes.main.style.cursor = "pointer";
       }
-      else if (!this._clicksEnabled || e.target != hoveredElement._nodes.main){
+      else if (!this._clicksEnabled || !hoveredElement._nodes.main.contains(e.target)){
         if (hoveredElement) hoveredElement._nodes.main.style.cursor = oldCursor;
         hoveredElement = undefined;
       }
     }
-    document.body.addEventListener("mousemove", this._mouseMoveListener);
+    document.body.addEventListener("mousemove", this._mouseMoveListener, true);
     this.addEventListener("select", e=>{
       this._selectedElement = e;
-      this._events.push("Select", e._name, Date.now());
+      this._events.push(["Select", e._name, Date.now(), this._elements.map(e=>encodeURIComponent(e._name)).join(";")]);
       this._elements.forEach(e=>e._nodes.main.classList.remove("selected"));
       e._nodes.main.classList.add("selected");
     });
     this.addEventListener("unselect", e=>{
       this._selectedElement = undefined;
-      this._events.push("Unselect", e._name, Date.now());
+      this._events.push(["Unselect", e._name, Date.now()]);
       e._nodes.main.classList.remove("selected");
     });
     r();
@@ -64,7 +64,11 @@ window.PennController._AddElementType('Selector', function (PennEngine){
     document.body.removeEventListener("mousemove", this._mouseMoveListener);
     document.body.removeEventListener("keydown", this._keyHandler);
     if (!this._log) return;
-    this._events.forEach(e=>this.log(...e));
+    const strLog = (this._log instanceof Array?this._log:["last"]).filter(s=>typeof(s)=="string").map(s=>s.toLowerCase());
+    this._events.forEach((e,i)=>{
+      if (i==this._events.length-1&&strLog.indexOf("last")>=0 || i==0&&strLog.indexOf("first")>=0 || strLog.indexOf("all")>=0)
+        this.log(...e);
+    });
   }
   this.value = async function () { 
     if (!(this._selectedElement instanceof PennEngine.Element)) return;
@@ -137,49 +141,61 @@ window.PennController._AddElementType('Selector', function (PennEngine){
         this._frame.style['margin-left'] = "-"+w;
         this._frame.style['margin-top'] = "-"+w;
         this._frame.style['pointer-events'] = 'none';
-        e._nodes.main.append(this._frame);
+        e._nodes.main.before(this._frame);
       });
       this.addEventListener("unselect", e=>this._frame instanceof Node && this._frame.remove());
       r();
     },
     keys: function(r,...keys){ r(this._keys = keys); },
+    log: function(r,...whats) {
+      if (whats.length==0) this._log = true;
+      else this._log = whats;
+      r();
+    },
     $shuffle: async function(r,...refs) {
+      let indices = []; // List the indices of the references commands/elements
       for (let i=0; i < refs.length; i++)
         if (refs[i] instanceof PennEngine.Commands){
           await refs[i].call();
           const idx = this._elements.findIndex(el=>el==refs[i]._element);
-          if (idx>=0) refs[i] = idx;
+          if (idx>=0) indices.push(idx);
         }
         else if (refs[i] instanceof Function)
-          refs[i] = await refs[i].call();
-      if (refs.length==0) refs = this._elements.map((v,i)=>i);
-      refs = refs.filter( n => !isNaN(n) && n >= 0 && n < this._elements.length );
-      let shuffledIndices = [...refs];
+          indices.push(await refs[i].call());
+      if (indices.length==0) indices = this._elements.map((v,i)=>i);
+      // Make sure we're left with only valid indices
+      indices = indices.filter( n => !isNaN(n) && n >= 0 && n < this._elements.length );
+      // shuffledIndices shuffles the references indices
+      const shuffledIndices = [...indices];
       window.fisherYates(shuffledIndices);
-      const copyElements = [...this._elements], printCommands = [];
-      refs.forEach( (idx,i) => {
-        const original = copyElements[idx], replacer = copyElements[shuffledIndices[i]];
-        this._elements[idx] = replacer;
+      // shuffledElements will be a correspondingly shuffled copy of this._elements
+      const shuffledElements = [...this._elements], printCommands = [];
+      indices.forEach( (idx,i) => {
+        const original = this._elements[idx], replacer = this._elements[shuffledIndices[i]];
+        shuffledElements[idx] = replacer;
         if (original._nodes && document.body.contains(original._nodes.main))
           printCommands.push({toPrint:replacer,args:[...this._prints.get(original)]});
       });
-      refs.forEach( idx => {
+      // Remove any referenced element from the page
+      indices.forEach( idx => {
         const nodes = this._elements[idx]._nodes;
         if (nodes.parent instanceof Node) nodes.parent.remove();
         else if (nodes.main instanceof Node) nodes.main.remove();
       });
+      // Execute any print command that was added earlier
       for (let i=0; i<printCommands.length; i++){
         const commandRef = printCommands[i].toPrint._commands, printArgs = printCommands[i].args;
+        // Replace any argument that references an element that was shuffled with its replacer
         for (let n=0; n<printArgs.length; n++){
           if (!(printArgs[n] instanceof PennEngine.Commands)) continue;
-          const ref = this._elements.indexOf(printArgs[n]._element);
-          if (ref>=0) {
-            const indexInShuffledIndices = shuffledIndices.indexOf(ref);
-            if (indexInShuffledIndices>=0) printArgs[n] = this._elements[refs[indexInShuffledIndices]]._commands;
-          }
+          // this._elements is still unshuffled
+          const idx = this._elements.indexOf(printArgs[n]._element);
+          // but shuffledElements is shuffled: use its element at idx (different only if the element was shuffled)
+          if (idx>=0) printArgs[n] = shuffledElements[idx]._commands;
         }
         await commandRef.print(...printArgs).call();
       }
+      this._elements = [...shuffledElements];
       r();
     }
   }

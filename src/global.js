@@ -1,3 +1,8 @@
+// TODO:
+//
+//  - catch Uncaught (in promise) DOMException: The play method is not allowed by the user agent or the platform in the current context, possibly because the user denied permission.
+//  - catch Uncaught SyntaxError: missing ) after argument list
+
 import { header, footer, newTrial, checkpreloaded, sendResults, encryptResults } from './trial';
 import { addTable, getTable, template } from './template';
 import { addElementType, elements } from './element';

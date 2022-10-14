@@ -17,7 +17,7 @@ window.PennController._AddElementType('Text', function (PennEngine){
   this.end = async function(){ 
     if (!this._log) return;
     if (this._prints.length==0) this.log("Print", "", null, "Never printed");
-    for (let i = 0; i < this._prints; i++)
+    for (let i = 0; i < this._prints.length; i++)
       this.log("Print",this._prints[i].text,this._prints[i].date,encodeURIComponent(this._prints[i].args.join(' ')));
   }
   this.value = async function () { return this._text; }

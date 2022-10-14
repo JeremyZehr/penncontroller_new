@@ -5,6 +5,18 @@ import { debug } from './debug';
 import { PennEngine } from './pennengine';
 import { addStylesheet } from './utils';
 
+// Scaling needs to be turned off for computations be accurate, hence the helper functions below
+const scaledNodes = new Map(); // Keep track of nodes that are scaled
+const switchScaling = on=>{
+  for (let n of scaledNodes.keys()) {
+    if (!(n instanceof Node)) continue;
+    if (on) n.style.transform = (n.style.transform||"") + " " + scaledNodes.get(n);
+    else  n.style.transform = (n.style.transform||"").replace(/scale\([^,]+(,[^,]+)?\)/,'');
+  }
+}
+const scalingOn = ()=>switchScaling(true);
+const scalingOff = ()=>switchScaling(false);
+// Helper regex to parse coordinate arguments
 const coordRegex = /^((left|top|center|middle|right|bottom) at )?(\d+.*)$/i;
 const isPrinted = n=>n instanceof Node && document.body.contains(n);
 const applyCss = function (css) {
@@ -30,6 +42,7 @@ PennEngine.cssCommandOnNode = cssCommandOnNode;
 const updatePrints = new Map();
 const applyCoordinates = async (x,y,element,container,callback) => {
   updatePrints.set(element, {x:x,y:y,container:container});
+  let dispatchCallback = true;
   let bcr;  // BoundingClientRect of the container
   const update = async r=>{
     if (!(callback instanceof Function)) r();
@@ -38,17 +51,19 @@ const applyCoordinates = async (x,y,element,container,callback) => {
     x=updatePrint.x;
     y=updatePrint.y;
     container=updatePrint.container;
+    const computedStyleContainer = window.getComputedStyle(container);
     // Stop updating the display if the container or the element is not printed
     if (bcr && (!isPrinted(container) || !isPrinted(element))) return;
-    if (window.getComputedStyle(container).position=="static") container.style.position = 'relative';
+    if (computedStyleContainer.position=="static") container.style.position = 'relative';
+    scalingOff(); // Turn scaling off to compute dimensions
     let newbcr;
     if (container==document.body)
       newbcr = {height: window.innerHeight, width: window.innerWidth,
                 top: 0, left:0, bottom: window.innerHeight, right: window.innerWidth};
     else
       newbcr = container.getBoundingClientRect();
-    // Don't do anything if BoundingClientRect hasn't changed since last update
-    if (bcr && JSON.stringify(bcr)==JSON.stringify(newbcr)) return window.requestAnimationFrame(update);
+    // Don't do anything if BoundingClientRect hasn't changed since last update (turn scaling back on)
+    if (bcr && JSON.stringify(bcr)==JSON.stringify(newbcr)) return scalingOn() || window.requestAnimationFrame(update);
     bcr = newbcr;
     const dummy = document.createElement("DIV");
     [['visibility','hidden'],['position','absolute'], // Create a dummy, hidden element in place of the one we want to print
@@ -58,6 +73,7 @@ const applyCoordinates = async (x,y,element,container,callback) => {
     const dummybcr = dummy.getBoundingClientRect();
     dummy.remove();
     const transform = []; // We'll use transform X/Y to center the element horizontally and/or vertically
+    const transform_origin = []; // Same for origin
     const coordinate = (c,xOrY) => {
       xOrY = xOrY.toUpperCase();
       const leftOrTop = xOrY=='X'?'left':'top', widthOrHeight = xOrY=='X'?'width':'height';
@@ -74,8 +90,14 @@ const applyCoordinates = async (x,y,element,container,callback) => {
           else if (!coord.match(/^-?\d+(\.\d+)?[a-z]*$/i)) debug.error(`Invalid ${xOrY} coordinate: ${c}`);
           element.style[leftOrTop] = `calc(${(bcr[leftOrTop]-dummybcr[leftOrTop])}px + ${coord})`;
           if (phrase[1]) {
-            if (phrase[1].match(/middle|center/i)) transform.push(`translate${xOrY}(-50%)`);
-            else if (phrase[1].match(/right|bottom/i)) transform.push(`translate${xOrY}(-100%)`);
+            if (phrase[1].match(/middle|center/i)) {
+              transform.push(`translate${xOrY}(-50%)`);
+              transform_origin[xOrY=='X'?0:1] = '50%';
+            }
+            else if (phrase[1].match(/right|bottom/i)) {
+              transform.push(`translate${xOrY}(-100%)`);
+              transform_origin[xOrY=='X'?0:1] = '100%';
+            }
           }
         }
         else debug.error(`Invalid ${xOrY} coordinate: ${c}`);
@@ -86,14 +108,16 @@ const applyCoordinates = async (x,y,element,container,callback) => {
     if (y!==undefined) coordinate(y,'Y');
     // if (transform.length) element.style.transform = transform.join(" ");
     element.style.transform = transform.join(" ");
+    element.style["transform-origin"] = transform_origin.join(" ");
     element.style.position = 'absolute';
-    let dispatch = !isPrinted(element);
     container.append(element);
-    if (dispatch && callback instanceof Function) {
+    scalingOn();  // Computations are done, turn scaling back on
+    if (dispatchCallback && callback instanceof Function) {
+      dispatchCallback = false;
       await callback();
       r();
     }
-    window.requestAnimationFrame(update);
+    window.requestAnimationFrame(()=>update(r));
   };
   return new Promise(r=>update(r));
 }
@@ -173,22 +197,6 @@ const printBeforeOrAfter = async function(r,beforeOrAfter,what){
   }
   if (isPrinted((this._nodes||{}).parent)) await callback();
   else this.addEventListener("print",callback);
-//   this._nodes[beforeOrAfter] = (this._nodes[beforeOrAfter]||document.createElement("DIV"));
-//   this._nodes[beforeOrAfter].classList.add(beforeOrAfter);
-//   if (what instanceof Commands) await what.call();  // If commands, run them now
-//   const c = async ()=>{
-//     if (!isPrinted((this._nodes||{}).parent)) return;
-//     if (beforeOrAfter=='before') this._nodes.parent.prepend(this._nodes[beforeOrAfter]);
-//     else this._nodes.parent.append(this._nodes[beforeOrAfter]);
-//     // If commands (ie reference to element) then create new *empty* commands so as to only stack "print," and run it
-//     if (what instanceof Commands) await what._element._commands.print(this._nodes[beforeOrAfter]).call();
-//     else {
-//       if (what instanceof Function) what = await what();
-//       this._nodes[beforeOrAfter].append(what);
-//     }
-//   };
-//   this.addEventListener("print", c);
-//   if (isPrinted((this._nodes||{}).parent)) await c();
   r();
 };
 
@@ -205,7 +213,6 @@ export const standardCommands = {
       this._nodes.parent.style.display = 'flex';
       this._nodes.parent.append(this._nodes.main);
       await processComplexPrint.call(this, ...args);
-      // await this.dispatchEvent("print", ...args);
       this.addEventListener("_end",()=>{
         if (this._nodes) {  // Make sure to remove all printed content when the trial ends
           if (this._nodes.before instanceof Node) this._nodes.before.remove();
@@ -271,6 +278,56 @@ export const standardCommands = {
       r( f() );
     },
     right: async function(r){ await cssCommandOnNode.call(this, 'parent', {width: '100%', 'justify-content': 'end'}); r(); },
+    scaling: async function(r,w,h){
+      w = String(w); h = String(h);
+      const dummy = document.createElement("DIV");
+      dummy.style.visibility = 'hidden';
+      dummy.style.position = 'absolute';
+      dummy.style['pointer-events'] = 'none';
+      let lastPrint;
+      const callback = (print,oldW,oldH)=>{
+        const parent = (this._nodes||{parent:null}).parent;
+        if (print!=lastPrint||!document.documentElement.contains(parent)) return scaledNodes.set(parent,'unset');
+        let newW, newH;
+        if (w.match(/page|screen/i)) { newW=window.innerWidth; newH=window.innerHeight; }
+        else {
+          if (w.match(/\d+(\.\d+)?(px)?\W*$/)) newW = parseInt(w);
+          else if (w.match(/\d+(\.\d+)?[\w%]+/)){
+            dummy.style.width = w;
+            dummy.style.height = 1;
+            document.documentElement.prepend(dummy);
+            newW = dummy.getBoundingClientRect().width;
+            dummy.remove();
+          }
+          if (h.match(/\d+(\.\d+)?(px)?\W*$/)) newH = parseInt(h);
+          else if (h.match(/\d+(\.\d+)?[\w%]+/)){
+            dummy.style.width = 1;
+            dummy.style.height = h;
+            document.documentElement.prepend(dummy);
+            newH = dummy.getBoundingClientRect().height;
+            dummy.remove();
+          }
+        }
+        if (newW!=oldW || newH!=oldH){
+          scalingOff(); // Turn off scaling to compute BoundingClientRect
+          const copy = parent.cloneNode(/*deep:*/true);
+          copy.style.position='absolute';copy.style.visibility='hidden';copy.style.scale='unset';
+          document.body.prepend(copy);
+          const bcr = copy.getBoundingClientRect();
+          copy.remove();
+          let ratio_w = newW/bcr.width, ratio_h = newH/bcr.height;
+          if (w.match(/page|screen/i)) { ratio_w = Math.min(ratio_w,ratio_h); ratio_h = ratio_w; }
+          if (w.match(/auto/)) ratio_w = ratio_h;
+          if (h.match(/auto/)) ratio_h = ratio_w;
+          scaledNodes.set(parent,`scale(${ratio_w},${ratio_h})`);
+          scalingOn(); // Turn scaling back on
+        }
+        window.requestAnimationFrame(()=>callback(print,newW,newH));
+      };
+      callback();
+      this.addEventListener("print", (...args) => { lastPrint = args; callback(lastPrint); });
+      r();
+    },
     size: async function(r,w,h) { await cssCommandOnNode.call(this, 'main', {width: w, height: h}); r(); }
   },
   tests: {

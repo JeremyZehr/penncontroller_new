@@ -47,6 +47,8 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
   const cancelDragging = function(destination){ 
     const d = this._dragging;
     if (!d) return;
+    const dragElement = PennEngine.trials.current._elements.find(e=>(e._nodes||{main:undefined}).main==d.node);
+    this._events.push(["Cancel",dragElement?dragElement._name:d.node.id||d.node.className||d.node.nodeName,Date.now()]);
     d.dragging = false;
     d.node.style['pointer-events'] = 'unset';
     if (this._bungee && d.placeholder instanceof Node) {
@@ -124,6 +126,8 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
         cancelDragging.call(this,(this.dragging||{destination:undefined}).drop);
         this._dragging = this._drags.find(v=>v.node===e.target);
         if (this._dragging===undefined) return;
+        const dragElement = PennEngine.trials.current._elements.find(e=>(e._nodes||{main:undefined}).main==e.target);
+        this._events.push(["Drag",dragElement?dragElement._name:e.target.id||e.target.className||e.target.nodeName,Date.now()]);
         this._dragging.dragging = true;
         this._dragging.oldStyle = {
           position: this._dragging.node.style.position,
@@ -169,7 +173,7 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
     document.documentElement.removeEventListener("mousemove", this._handlers.mousemove);
     document.documentElement.removeEventListener("mouseup", this._handlers.mouseup);
     if (!this._log || this._events.length==0) return;
-    for (let i = 0; i < this._events; i++) this.log(...this.events[i]);
+    for (let i = 0; i < this._events; i++) this.log(...this._events[i]);
   }
   this.value = async function () { return this._name; }
   this.actions = {
@@ -180,6 +184,12 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
         for (let i = 0; i < c.lengths; i++)
           if (c instanceof Function) await c.call();
       });
+      r();
+    },
+    $drop: async function(r,x,y){
+      const drag = this._drags.find(v=>[x,y].find(z=>(z instanceof PennEngine.Commands&&(z._element._nodes||{main:0}).main==v.node)));
+      const drop = this._drops.find(v=>[x,y].find(z=>(z instanceof PennEngine.Commands&&(z._element._nodes||{main:0}).main==v.node)));
+      if (drag && drop) dropOn(drag,drop);
       r();
     },
     $removeDrag: async function(r,...els){ await removeWhat.call(this,'_drags', els); r(); },

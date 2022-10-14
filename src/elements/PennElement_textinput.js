@@ -10,8 +10,12 @@ window.PennController._AddElementType('TextInput', function (PennEngine){
     this._log = false;
     this._values = [];
     this._lines = 1;
+    this._firstKeypress = undefined;
+    this._lastKeypress = undefined;
     ['change','keydown','keypress','keyup'].forEach(t=>this._nodes.main.addEventListener(t,e=>{
       if (this._lines<=0) return;
+      if (this._firstKeypress===undefined) this._firstKeypress = {key:e.key,time:Date.now()};
+      this._lastKeypress = {key:e.key,time:Date.now()};
       const lineCount = this._nodes.main.value.split('\n').length;
       if (e.key=="Enter" && lineCount >= this._lines) e.preventDefault();
     }));
@@ -29,13 +33,21 @@ window.PennController._AddElementType('TextInput', function (PennEngine){
         paste = paste.split('\n',this._lines-(lineCountLeft+lineCountRight)).join("\n");
       field.value = left+paste+right;
       field.setSelectionRange(start+paste.length,start+paste.length);
-    })
+    });
+    this._validateEvents = [];
+    this.addEventListener("waited", ()=>this._validateEvents.push({text: this._nodes.main.innerText, time: Date.now()}));
     r();
   }
   this.end = async function(){ 
     if (!this._log) return;
-    this.log("Value", this._nodes.main.value);
-    // this.log("Print",this._prints[i].text,this._prints[i].date,encodeURIComponent(this._prints[i].args.join(' ')));
+    const strLog = (this._log instanceof Array?this._log:["final"]).filter(s=>typeof(s)=="string").map(s=>s.toLowerCase());
+    if (strLog.indexOf("first")>=0 && this._firstKeypress)
+      this.log("FirstKeyPress", encodeURIComponent(this._firstKeypress.key), this._firstKeypress.time);
+    if (strLog.indexOf("last")>=0 && this._lastKeypress)
+      this.log("LastKeyPress", encodeURIComponent(this._lastKeypress.key), this._lastKeypress.time);
+    if (strLog.indexOf("validate")>=0 && this._validateEvents.length)
+      this._validateEvents.forEach( e => this.log("Validate", encodeURIComponent(e.text), e.time) );
+    if (strLog.indexOf("final")>=0) this.log("Value", encodeURIComponent(this._nodes.main.value), Date.now());
   }
   this.value = async function () { return (this._nodes||{main:{}}).main.value; }
   this.actions = {
@@ -63,7 +75,11 @@ window.PennController._AddElementType('TextInput', function (PennEngine){
       else this._nodes.main.rows = this._lines;
       r();
     },
-    log: function(r){ this._log = true; r(); },
+    log: function(r,...whats){ 
+      if (whats.length==0) this._log = true; 
+      else this._log = whats;
+      r(); 
+    },
     once: function(r){ this.addEventListener("waited", ()=>this._nodes.main.disabled=true); r(); }
   }
   this.test = {

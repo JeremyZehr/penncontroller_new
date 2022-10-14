@@ -16,10 +16,8 @@ window.PennController._AddElementType('Function', function (PennEngine){
   this.test = {
     is: async function(v) {
       const r = await this._function.call();
-      if (v instanceof Function)
-        return await v(r);
-      else
-        return r;
+      if (v instanceof Function) return await v(r);
+      else return r;
     }
   }
 });

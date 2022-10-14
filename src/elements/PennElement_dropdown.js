@@ -20,7 +20,10 @@ window.PennController._AddElementType('DropDown', function (PennEngine){
   }
   this.end = async function(){ 
     if (!this._log || this._events.length==0) return;
-    for (let i = 0; i < this._events; i++) this.log(...this.events[i]);
+    for (let i = 0; i < this._events; i++) {
+      if (this._log.match(/all/i) || i==0&&this._log.match(/first/i) || i==this._events.length-1&&this._log.match(/last/i))
+        this.log(...this._events[i])
+    }
   }
   this.value = async function () { 
     if (this._nodes && this._nodes.main instanceof Node)
@@ -44,26 +47,41 @@ window.PennController._AddElementType('DropDown', function (PennEngine){
       });
       r();
     },
+    log: function(r,what){
+      this._log = what||"all";
+      r();
+    },
     remove: function(r,...options) {
-      [...this._nodes.main.children].forEach(o=>{
-        if (options.indexOf(o.value)<0) return;
-        o.remove();
-      });
+      if (this._nodes && this._nodes.main instanceof Node){
+        if (options.length>0)
+          [...this._nodes.main.children].forEach(o=>{
+            if (options.indexOf(o.value)<0) return;
+            o.remove();
+          });
+        else{
+          this._nodes.main.remove();
+          if (this._nodes.parent instanceof Node) this._nodes.parent.remove();
+        } 
+      }
       r();
     },
     select: function(r,option){
-      option = [...this._nodes.main.children].findIndex(o=>o.innerText==option);
-      if (option<0) return r();
-      this._nodes.main.selectedIndex = option;
-      this.dispatchEvent("select");
+      if (this._nodes && this._nodes.main instanceof Node){
+        option = [...this._nodes.main.children].findIndex(o=>o.innerText==option);
+        if (option<0) return r();
+        this._nodes.main.selectedIndex = option;
+        this.dispatchEvent("select");
+      }
       r();
     },
     shuffle: function(r,keepSelected){
-      const options = [...this._nodes.main.children];
-      window.fisherYates(options);  // fisherYates is defined by IBEX
-      options.forEach(o=>this._nodes.main.append(o));
-      if (keepSelected===undefined && !keepSelected)
-        this._nodes.main.selectedIndex = (this._initialDefaultText?options.findIndex(o=>o.disabled):-1);
+      if (this._nodes && this._nodes.main instanceof Node){
+        const options = [...this._nodes.main.children];
+        window.fisherYates(options);  // fisherYates is defined by IBEX
+        options.forEach(o=>this._nodes.main.append(o));
+        if (keepSelected===undefined && !keepSelected)
+          this._nodes.main.selectedIndex = (this._initialDefaultText?options.findIndex(o=>o.disabled):-1);
+      }
       r();
     },
     $wait: function(r,t) {
@@ -77,6 +95,7 @@ window.PennController._AddElementType('DropDown', function (PennEngine){
   }
   this.test = {
     selected: async function(option){
+      if (!(this._nodes && this._nodes.main instanceof Node)) return false;
       if (option===undefined) return this._nodes.main.selectedIndex>=0;
       option = [...this._nodes.main.children].find(o=>o.innerText==option);
       return (option||{selected:false}).selected;

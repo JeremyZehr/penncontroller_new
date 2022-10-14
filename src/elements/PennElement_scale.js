@@ -104,7 +104,11 @@ window.PennController._AddElementType('Scale', function (PennEngine){
   this.end = async function(){ 
     document.body.removeEventListener("keydown", this._keysHandler);
     if (!this._log) return;
-    this._selects.forEach(s=>this.log("Select", ...s));
+    const strLog = (this._log instanceof Array?this._log:["last"]).filter(s=>typeof(s)=="string").map(s=>s.toLowerCase());
+    this._selects.forEach((s,i)=>{
+      if (i==this._selects.length-1&&strLog.indexOf("last")>=0 || i==0&&strLog.indexOf("first")>=0 || strLog.indexOf("all")>=0)
+        this.log("Select", ...s)
+    });
   }
   this.value = async function () { return this._value; }
   this.actions = {
@@ -179,6 +183,11 @@ window.PennController._AddElementType('Scale', function (PennEngine){
       this._labelsPosition = p; 
       if (document.body.contains(this._nodes.main)) await buildScale.call(this);
       r(); 
+    },
+    log: function(r,...whats) {
+      if (whats.length==0) this._log = true;
+      else this._log = whats;
+      r();
     },
     radio: async function (r){
       this._scaleType = "radio";

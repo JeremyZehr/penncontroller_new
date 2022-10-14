@@ -1,0 +1,21 @@
+import './index.dev';
+
+import './elements/PennElement_button';
+import './elements/PennElement_canvas';
+import './elements/PennElement_dragdrop';
+import './elements/PennElement_dropdown';
+import './elements/PennElement_eyetracker';
+import './elements/PennElement_function';
+import './elements/PennElement_html';
+import './elements/PennElement_image';
+import './elements/PennElement_key';
+import './elements/PennElement_media';
+import './elements/PennElement_mediarecorder';
+import './elements/PennElement_mousetracker';
+import './elements/PennElement_scale';
+import './elements/PennElement_selector';
+import './elements/PennElement_text';
+import './elements/PennElement_textinput';
+import './elements/PennElement_timer';
+import './elements/PennElement_tooltip';
+import './elements/PennElement_var';

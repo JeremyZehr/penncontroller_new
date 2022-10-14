@@ -10,12 +10,13 @@ window.PennController._AddElementType('Canvas', function (PennEngine){
     this._nodes.main.style.width = this._originalWidth;
     this._nodes.main.style.height = this._originalHeight;
     this._prints = [];
+    this.addEventListener("print", (...args)=>this._prints.push({date: Date.now(), args: args}) );
     r();
   }
   this.end = async function(){ 
     if (!this._log) return;
     if (this._prints.length==0) this.log("Print", "", null, "Never printed");
-    for (let i = 0; i < this._prints; i++)
+    for (let i=0; i<this._prints.length; i++)
       this.log("Print",this._prints[i].text,this._prints[i].date,encodeURIComponent(this._prints[i].args.join(' ')));
   }
   this.value = async function () { return this._name; }
@@ -31,6 +32,10 @@ window.PennController._AddElementType('Canvas', function (PennEngine){
       }
       r();
     },
-    color: function(r,c){ this._nodes.main.style['background-color'] = c; r(); }
+    color: function(r,c){ 
+      if (this._nodes && this._nodes.main instanceof Node) this._nodes.main.style['background-color']=c;
+      else this.addEventListener("print",()=>this._nodes.main.style['background-color']=c);
+      r();
+    }
   }
 });

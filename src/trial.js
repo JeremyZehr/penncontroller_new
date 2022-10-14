@@ -32,6 +32,10 @@ export class Trial {
     this._properElements = [];
     this._extra_columns = [];
     this._defaults = {};
+    this._logStart = true;
+    this._logEnd = true;
+    this._logHeader = true;
+    this._logFooter = true;
     this._finishedCallback = ()=>null;
   }
   // Private
@@ -44,18 +48,20 @@ export class Trial {
   }
   async _run(parent,sequence) {
     sequence = sequence || this._sequence;
+    let trial = this; // Pass down this as the running trial, or trials.running if this is the header or footer trial
+    if ([footerHeaderTrials.header,footerHeaderTrials.footer].indexOf(trial)>=0) trial = trials.running;
     for (let p in sequence){
       const promise = sequence[p];
-      if (trials.running != this) continue;
+      if (trials.running != trial) continue;
       else if (promise instanceof Function || promise instanceof SendResults){
-        const f = promise.call(this,parent);
+        const f = promise.call(trial,parent);
         await Promise.any([
           f instanceof Promise ? f.catch(e=>debug.error(`Error running command(s) #${p} on ${promise}: ${e}`)) : null ,
           new Promise(r=>promiseSkipCurrentCommand=r)
         ]);
       }
       else if (promise instanceof Array)
-        await this._run(parent,promise);
+        await trial._run(parent,promise);
     }
   }
   async _end() { 
@@ -63,17 +69,11 @@ export class Trial {
     // END ALL ELEMENTS
     for (let e in this._elements) await this._elements[e]._end();
     // LOG END EVENT
-    this._logs.push([
-      ["PennElementName", this._label],
-      ["PennElementType", "__Trial__"],
-      ["Parameter","__Event__"],
-      ["Value","__End__"],
-      ["EventTime",Date.now()],
-      ["Comments","NULL"]
-    ]);
+    if (this._logEnd) logTrialEvent(this,"__Trial__","__End__");
     // ADD ANY OF HEADER'S EXTRA COLUMNS
-    if (footerHeaderTrials.header && this._runHeader) 
+    if (footerHeaderTrials.header && this._runHeader) {
       await this._insertExtraColumns(footerHeaderTrials.header._extra_columns);
+    }
     // ADD SELF'S EXTRA COLUMNS
     await this._insertExtraColumns(this._extra_columns);
     // ADD ANY OF FOOTER'S EXTRA COLUMNS
@@ -101,6 +101,13 @@ export class Trial {
   label(name){ this._label = name; return this; }
   noFooter(){ this._runFooter = false; return this; }
   noHeader(){ this._runHeader = false; return this; }
+  noTrialLog(...what){ 
+    if (what.length==0 || what.find(v=>v.match(/start/))) this._logStart = false;
+    if (what.length==0 || what.find(v=>v.match(/end/))) this._logEnd = false;
+    if (what.length==0 || what.find(v=>v.match(/header/))) this._logHeader = false;
+    if (what.length==0 || what.find(v=>v.match(/footer/))) this._logFooter = false;
+    return this; 
+  }
   setOption(name,value) { 
     if (this[name]===undefined) this[name] = value; 
     else throw Error(`PennController trial option ${name} already set or read-only`);
@@ -127,6 +134,15 @@ const printPreloading = async (trial,resources,delay=PRELOAD_TIMEOUT) => {
   preloadNode.remove();
 }
 
+const logTrialEvent = (trial,type,event) => trial._logs.push([
+  ["PennElementName", trial._label],
+  ["PennElementType", type],
+  ["Parameter","__Event__"],
+  ["Value",event],
+  ["EventTime",Date.now()],
+  ["Comments","NULL"]
+]);
+
 window.define_ibex_controller({
   name: "PennController",
   jqueryWidget: {
@@ -139,16 +155,9 @@ window.define_ibex_controller({
       this.cssPrefix = this.options._cssPrefix;
       this.utils = this.options._utils;
 
-      trial._logs = [
-        [
-          ["PennElementName", trial._label],
-          ["PennElementType", "__Trial__"],
-          ["Parameter","__Event__"],
-          ["Value","__Start__"],
-          ["EventTime",Date.now()],
-          ["Comments","NULL"]
-        ]
-      ];
+      trial._logs = [];
+      if (trial._logStart) logTrialEvent(trial,"__Trial__","__Start__");
+
       trials.running = trial;
 
       // PRELOAD
@@ -156,15 +165,21 @@ window.define_ibex_controller({
       if (resources.length) await printPreloading(trial,resources);
 
       // HEADER
-      if (footerHeaderTrials.header && trial._runHeader) 
+      if (footerHeaderTrials.header && trial._runHeader) {
+        if (trial._logHeader && footerHeaderTrials.header._logStart) logTrialEvent(trial,"__Header__","__Start__");
         await footerHeaderTrials.header._run(this.element);
+        if (trial._logHeader && footerHeaderTrials.header._logEnd) logTrialEvent(trial,"__Header__","__End__");
+      }
 
       // MAIN
       await trial._run(this.element);
 
       // FOOTER
-      if (footerHeaderTrials.footer && trial._runFooter)
+      if (footerHeaderTrials.footer && trial._runFooter) {
+        if (trial._logFooter && footerHeaderTrials.foooter._logStart) logTrialEvent(trial,"__Footer__","__Start__");
         await footerHeaderTrials.footer._run(this.element);
+        if (trial._logFooter && footerHeaderTrials.footer._logEnd) logTrialEvent(trial,"__Footer__","__End__");
+      }
       
       // END
       await trial._end();
@@ -194,6 +209,7 @@ const footerHeader = (which,...sequence) => {
   sequence.forEach(s=>removeSendResultsFromItems(s));
   trial._sequence.push(...sequence);
   trial._properElements.push(...trials.constructing._properElements);
+  Object.defineProperty(trial,'_node',{get(){ return trials.running._node; }});
   trials.constructing = new Trial();
   return trial;
 }
@@ -231,6 +247,9 @@ window.alert = function(...args){
   if (args[0]=="WARNING: Results have already been sent once. Did you forget to set the 'manualSendResults' config option?") return;
   return oldAlert.call(this, ...args);
 }
+const DOWNLOADMESSAGE = "Click here to download a copy of your results";
+const CONTACTMESSAGE = "The experimenters might contact you in case the results are missing on their end:";
+
 export class SendResults {};
 export const sendResults = (label,noPrompt) => {
   if (window.manualSendResults == undefined || window.manualSendResults != false) window.manualSendResults = true;
@@ -238,8 +257,8 @@ export const sendResults = (label,noPrompt) => {
     toString: ()=>"SendResults", 
     _cssPrefix: '',
     noPrompt: noPrompt,
-    downloadMessage: "Click here to download a copy of your results",
-    contactMessage: "The experimenters might contact you in case the results are missing on their end:"
+    downloadMessage: DOWNLOADMESSAGE,
+    contactMessage: CONTACTMESSAGE
   };
   window.items = [ [label===undefined?[sym,null]:label, "__SendResults__", sym] ];
   const r = new SendResults();
@@ -321,13 +340,13 @@ gotRunningOrder.then(()=>{
         // Create a link to let participants download their results
         if (t.downloadResults.childElementCount==0){
           const link = document.createElement("A");
-          link.innerHTML = t.options.downloadMessage;
-          link.download = "results_"+args[0][4]+".bak";
+          link.innerHTML = t.options.downloadMessage||DOWNLOADMESSAGE;
+          link.download = "results_"+(window.location.host+window.location.pathname).replace(/\W/g,'')+"_"+args[0][4]+".bak";
           get_encrypted_blob(oldStringify(allResults),encryption_public_key).then(blob=>{
             link.href = URL.createObjectURL(blob);
             t.clickedDownload = new Promise(r=>link.onclick=r);
             const d = document.createElement("DIV");
-            d.innerText = t.options.contactMessage;
+            d.innerText = t.options.contactMessage||CONTACTMESSAGE;
             t.downloadResults.append(d);
             t.downloadResults.append(link);
             if (!t.options.noPrompt) t.element.append(t.downloadResults);

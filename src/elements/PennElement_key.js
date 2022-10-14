@@ -21,7 +21,11 @@ window.PennController._AddElementType('Key', function (PennEngine){
   this.end = async function(){ 
     window.removeEventListener("keydown",this._handler);
     if (!this._log) return;
-    this._keyEvents.forEach(k=>this.log("Press", k.key, k.date, k.waited?'Wait validation':'No wait validation'));
+    this._keyEvents.forEach((k,i)=>{
+      if (k.waited || this._log instanceof Array && this._log.filter(s=>typeof(s)=="string").map(s=>s.toLowerCase())
+        .find(s=>s=="all" || s=="first"&&i==0 || s=="last"&&i==this._keyEvents.length-1) )
+          this.log("Press", k.key, k.date, k.waited?'Wait validation':'No wait validation');
+    });
   }
   this.value = async function () { 
     if (this._keyEvents && this._keyEvents.length>0) return this._keyEvents[this._keyEvents.length-1].key;
@@ -48,6 +52,13 @@ window.PennController._AddElementType('Key', function (PennEngine){
         r();
       });
     },
+  }
+  this.settings = {
+    log: function(r,...whats){ 
+      if (whats.length==0) this._log = true;
+      else this._log = whats; 
+      r(); 
+    }
   }
   this.test = {
     pressed: async function(key,first){ 

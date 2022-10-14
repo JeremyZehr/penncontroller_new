@@ -293,10 +293,7 @@ window.PennController._AddElementType("MediaRecorder", function(PennEngine) {
   };
 
   this.end = async function(){
-    for (let i=0; i<recorders.length; i++){
-      await this.updateRecorder("stop");
-      recorders[i].chunks=[];
-    }
+    if (this._status == "recording" || this._status == "paused") await this.updateRecorder("stop");
     this._mediaRecorder = undefined;
     for (let b=0; b<this._blobs.length; b++)
       if (blobs.indexOf(this._blobs[b])<0) blobs.push(this._blobs[b]);
@@ -390,11 +387,8 @@ window.PennController._AddElementType("MediaRecorder", function(PennEngine) {
   const oldResetPrefix = window.PennController.ResetPrefix;
   window.PennController.newTrial.ResetPrefix = function(prefix){
     const o = (prefix?window[prefix]:window);
-    o.InitiateRecorder = window.PennController.InitiateRecorder;
-    o.UploadRecordings = window.PennController.UploadRecordings;
-    o.DownloadRecordingsButton = window.PennController.DownloadRecordingsButton;
-    o.SetRecordingsZipFilename = window.PennController.SetRecordingsZipFilename;
-    o.MediaRecorderTexts = window.PennController.newTrial.MediaRecorderTexts;
+    ['InitiateRecorder','UploadRecordings','DownloadRecordingsButton','SetRecordingsZipFilename','MediaRecorderTexts']
+      .forEach( name => o[name] = window.PennController.newTrial[name] );
     return oldResetPrefix.call(this,prefix);
   }
 })();

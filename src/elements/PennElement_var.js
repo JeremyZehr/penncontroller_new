@@ -1,11 +1,12 @@
 (()=>{
 
-let global_vars = {}, PennEngine;
+const global_vars = {};
+let PE;
 
-window.PennController._AddElementType('Var', function (PE){
+window.PennController._AddElementType('Var', function (PennEngine){
 
-  PennEngine = PE;
-  
+  PE = PennEngine;
+
   this.immediate = function(name,value){ 
     this._initialValue = value;
     this._global = false;
@@ -22,10 +23,13 @@ window.PennController._AddElementType('Var', function (PE){
     for (let i = 0; i < this._values; i++)
       this.log("Value",this._values[i].value,this._values[i].date);
   }
-  this.value = async function () { return this._target._value; }
+  this.value = async function () {
+    if (this._global && global_vars[this._name]) this._target = global_vars[this._name];
+    return this._target._value; 
+  }
   this.actions = {
     $set: async function (r,value) { 
-      if (value instanceof PE.Commands){
+      if (value instanceof PennEngine.Commands){
         await value.call();
         value = await value._element.value;
       }
@@ -55,7 +59,7 @@ window.PennController._AddElementType('Var', function (PE){
   this.test = {
     $is: async function(t){
       let v = t;
-      if (t instanceof PE.Commands){
+      if (t instanceof PennEngine.Commands){
         await t.call();
         v = await t._element.value;
       }
@@ -74,17 +78,19 @@ window.PennController._AddElementType('Var', function (PE){
   }
 });
 
-PennEngine.elements.getVar = function(name){
-  let v = PennEngine.trials.current._elements.find(e=>e._type=="Var"&e._name==name);
+// Overwrite getVar now that _AddElementType has taken effect
+PE.elements.getVar = function(name){
+  let v = PE.trials.current._elements.find(e=>e._type=="Var"&e._name==name);
   if (v) return v._commands;
-  v = PennEngine.elements.newVar(name);
+  v = PE.elements.newVar(name);
   const c =  ()=>{
     if (!global_vars.hasOwnProperty(name))
       throw new Error(`Found no local of global Var element named ${name}`);
   };
   c.toString = ()=>`getVar("${name}")`;
   v._sequence.push(c);
-  v.global();
+  v._element._global = true;  // Mark it as global now
+  v.global(); // Make sure it is treated as global when commands are run
   return v;
 }
 

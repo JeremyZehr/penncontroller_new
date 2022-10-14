@@ -38,16 +38,16 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
       object.preload = 'auto';
       const checkLoaded = r=>{
         if (this._media instanceof Node) return;
-        if (target_ratio===undefined) r();
+        if (target_ratio===undefined) return r();
         if (user_has_interacted && object.readyState > 0 && object.paused && object.currentTime==0) {
           object.play();
-          setTimeout(()=>object.pause(), 500);
+          setTimeout(()=>this._media instanceof Node || object.pause(), 500);
         }
         const difference = object.duration-object.currentTime;
         let ratio = 0;
         if (object.buffered.length && object.seekable.length) ratio = object.buffered.end(0)/object.seekable.end(0);
         // console.log("checkLoaded",object.src,ratio);
-        if (difference<TIME_DIFFERENCE_PRELOADED || ratio >= target_ratio) r(object);        
+        if (difference<TIME_DIFFERENCE_PRELOADED || ratio >= target_ratio) return r(object);        
         else window.requestAnimationFrame(()=>checkLoaded(r));
       };
       object.src = uri;
@@ -130,7 +130,8 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
       this._disableLayer.remove();
       this._disableLayer = undefined;
     }
-    if (this._log) this._events.forEach(e=>this.log(...e));
+    this._events.forEach( e => ( this._log===true || this._log instanceof Array && 
+      this._log.find(s=>typeof(s)=="string"&&e[0].match(RegExp("^"+s,"i"))) ) && this.log(...e) );
   };
   
   this.value = function(){                                    // Value is timestamp of last end event
@@ -210,6 +211,11 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
       if (this._media instanceof Node) this._media.controls = true;
       this._disabled = false;
       r();
+    },
+    log: function(r,...whats){
+      if (what.length==0) this._log = true;
+      else this._log = whats;
+      r();
     }
   };
   
@@ -217,15 +223,10 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
     // Every test is used within a Promise back-end, but it should simply return true/false
     /* $AC$ Audio PElement.test.hasPlayed() Checks whether the audio has ever been played fully $AC$ */
     /* $AC$ Video PElement.test.hasPlayed() Checks whether the video has ever been played fully $AC$ */
-    hasPlayed: function(){
-      return this._hasPlayed;
-    }
-    ,
+    hasPlayed: function(){ return this._hasPlayed; },
     /* $AC$ Audio PElement.test.playing() Checks whether the audio is currently playing $AC$ */
     /* $AC$ Video PElement.test.playing() Checks whether the video is currently playing $AC$ */
-    playing: function(){
-      return this._media instanceof Node && this._media.currentTime && !this._media.paused;
-    }
+    playing: function(){ return this._media instanceof Node && this._media.currentTime && !this._media.paused; }
   };
 
 });

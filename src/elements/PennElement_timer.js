@@ -66,6 +66,7 @@ window.PennController._AddElementType('Timer', function (PennEngine){
       this._running = false;
       this._startTime = undefined;
       this._events.push(["Stopped","NA",Date.now()]);
+      this.dispatchEvent("elapsed");
     },
     $wait: async function(r,t){
       let waited = false;
