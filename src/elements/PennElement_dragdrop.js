@@ -11,7 +11,7 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
     }
     else if (what=='_drops'){
       d.drag = [];
-      d.offset = {};
+      d.offset = {x: this._offset.x, y: this._offset.y};
     }
     this[what].push(d);
     return d;
@@ -51,15 +51,17 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
     this._events.push(["Cancel",dragElement?dragElement._name:d.node.id||d.node.className||d.node.nodeName,Date.now()]);
     d.dragging = false;
     d.node.style['pointer-events'] = 'unset';
-    if (this._bungee && d.placeholder instanceof Node) {
-      d.placeholder.parentElement.insertBefore(d.node,d.placeholder);
+    if (d.placeholder instanceof Node){
+      if (this._bungee) {
+        d.placeholder.parentElement.insertBefore(d.node,d.placeholder);
+        d.node.style.position = d.oldStyle.position;
+        d.node.style.top = d.oldStyle.top;
+        d.node.style.left = d.oldStyle.left;
+        d.node.style['margin-left'] = d.oldStyle['margin-left'];
+        d.node.style['margin-top'] = d.oldStyle['margin-top'];
+      }
       d.placeholder.remove();
       d.placeholder = undefined;
-      d.node.style.position = d.oldStyle.position;
-      d.node.style.top = d.oldStyle.top;
-      d.node.style.left = d.oldStyle.left;
-      d.node.style['margin-left'] = d.oldStyle['margin-left'];
-      d.node.style['margin-top'] = d.oldStyle['margin-top'];
     }
     d.drop = destination;
     this._dragging = null;
@@ -77,17 +79,24 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
     d.node.style['pointer-events'] = 'unset';
     d.drop = destination;
     destination.drag.push(d);
-    if (this._bungee) {
-      destination.node.append(d.node);
-      d.node.style.position = d.oldStyle.position;
-      d.node.style.top = d.oldStyle.top;
-      d.node.style.left = d.oldStyle.left;
-      d.node.style['margin-left'] = d.oldStyle['margin-left'];
-      d.node.style['margin-top'] = d.oldStyle['margin-top'];
-    }
+    // if (this._bungee) {
+    //   destination.node.append(d.node);
+    //   d.node.style.position = d.oldStyle.position;
+    //   d.node.style.top = d.oldStyle.top;
+    //   d.node.style.left = d.oldStyle.left;
+    //   d.node.style['margin-left'] = d.oldStyle['margin-left'];
+    //   d.node.style['margin-top'] = d.oldStyle['margin-top'];
+    // }
+    const dragBCR = d.node.getBoundingClientRect(), destinationBCR = destination.node.getBoundingClientRect();
+    destination.node.append(d.node);
+    d.node.style.position = "static";
     if (destination.offset.x!==undefined) {
       d.node.style['margin-left'] = destination.offset.x;
       d.node.style['margin-top'] = destination.offset.y;
+    }
+    else {
+      d.node.style['margin-left'] = dragBCR.x-destinationBCR.x;
+      d.node.style['margin-top'] = dragBCR.y-destinationBCR.y;
     }
     if (d.placeholder instanceof Node) d.placeholder.remove();
     d.placeholder = undefined;
@@ -106,6 +115,7 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
     this._bungee = this._initialBungee;
     this._swap = this._initialSwap;
     this._single = this._swap || this._initialSingle;
+    this._offset = {x: undefined, x: undefined};
     this._events = [];
     this.addEventListener("drop", (drag,drop)=>{
       const dragElement = PennEngine.trials.current._elements.find(e=>(e._nodes||{main:undefined}).main==drag.node);
@@ -124,6 +134,7 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
       mousedown: e=>{
         // First make sure that any element being dragged goes back to its initial location
         cancelDragging.call(this,(this.dragging||{destination:undefined}).drop);
+        if (this._disabled) return;
         this._dragging = this._drags.find(v=>v.node===e.target);
         if (this._dragging===undefined) return;
         const dragElement = PennEngine.trials.current._elements.find(e=>(e._nodes||{main:undefined}).main==e.target);
@@ -139,25 +150,26 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
         this._dragging.placeholder = this._dragging.node.cloneNode(true);
         this._dragging.placeholder.style.visibility = 'hidden';
         // Get the BCR before changing style
-        const bcr = e.target.getBoundingClientRect();
-        this._dragging.offset = {x: e.pageX - (bcr.left+window.scrollX), y: e.pageY - (bcr.top+window.scrollY)};
+        const bcr = e.target.getBoundingClientRect(), scrollX = window.scrollX, scrollY = window.scrollY;
+        this._dragging.offset = {x: e.pageX - (bcr.left+scrollX), y: e.pageY - (bcr.top+scrollY)};
         this._dragging.node.style.position = 'absolute';
-        this._dragging.node.style.top = bcr.top+window.scrollY;
-        this._dragging.node.style.left = bcr.left+window.scrollX;
+        this._dragging.node.style.top = bcr.top+scrollY;
+        this._dragging.node.style.left = bcr.left+scrollX;
+        this._dragging.node.style.margin = 0;
         this._dragging.node.style['pointer-events'] = 'none';
         // Insert placholder before changing the target node's parent
         this._dragging.node.parentElement.insertBefore(this._dragging.placeholder,this._dragging.node);
         document.documentElement.append(this._dragging.node);
       },
       mousemove: e=>{
-        if (this._dragging == null) return;
+        if (this._disabled || this._dragging == null) return;
         if (this._dragging.node instanceof Node) {
           this._dragging.node.style.top = e.pageY - this._dragging.offset.y;
           this._dragging.node.style.left = e.pageX - this._dragging.offset.x;
         }
       },
       mouseup: e=>{
-        if (this._dragging == null) return;
+        if (this._disabled || this._dragging == null) return;
         const drop = this._drops.find(v=>v.node===e.target);
         if (drop===undefined) cancelDragging.call(this);
         else dropOn.call(this,this._dragging,drop);
@@ -221,8 +233,15 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
           else if (offset.y===undefined) offset.y = v;
         }
       };
-      if (drops.length==0) drops.push(...this._drops);
-      if (offset.x!==undefined) drops.forEach(d=>d.offset = {x: offset.x, y: offset.y});
+      if (drops.length==0) {
+        drops.push(...this._drops);
+        this._offset.x = offset.x;
+        this._offset.y = offset.y===undefined?offset.x:offset.y;
+      }
+      if (offset.x!==undefined) {
+        if (offset.y===undefined) offset.y = offset.x;
+        drops.forEach(d=>d.offset = {x: offset.x, y: offset.y});
+      }
       r();
     },
     single: function(r,yes){ this._single = (yes===undefined || yes); r(); },
