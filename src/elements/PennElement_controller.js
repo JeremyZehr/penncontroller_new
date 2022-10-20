@@ -38,8 +38,7 @@ window.PennController._AddElementType('Controller', function (PennEngine){
     r();
   }
   this.end = async function(){ 
-    console.log("controller end", this._log, this._logLines);
-    if (!this._log) return;
+    if (!this._log || !this._logLines) return;
     for (let i = 0; i < this._logLines; i++)
       this.log(this._controllerName,...this._logLines[i]);
   }

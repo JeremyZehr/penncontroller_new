@@ -6,7 +6,11 @@ window.onerror = (msg, url, linenumber) => {
 }
 window.addEventListener("unhandledrejection", function(promiseRejectionEvent) { 
   debug.error(promiseRejectionEvent.reason.message);
-  console.error("Promise error:", promiseRejectionEvent);
+  console.error("Promise error (unhandled):", promiseRejectionEvent);
+});
+window.addEventListener('rejectionhandled', event => { 
+  if (event.reason.message) debug.error(event.reason.message);
+  console.error("Promise error (handled):", event);
 });
 
 const VERSION = 2.1;

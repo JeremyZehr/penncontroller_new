@@ -60,10 +60,10 @@ window.PennController._AddElementType('Selector', function (PennEngine){
   }
   this.end = async function(){ 
     if (this._frame instanceof Node) this._frame.remove();
-    document.body.removeEventListener("click", this._clickHandler);
-    document.body.removeEventListener("mousemove", this._mouseMoveListener);
-    document.body.removeEventListener("keydown", this._keyHandler);
-    if (!this._log) return;
+    if (this._clickHandler instanceof Function) document.body.removeEventListener("click", this._clickHandler);
+    if (this._mouseMoveListener instanceof Function) document.body.removeEventListener("mousemove", this._mouseMoveListener);
+    if (this._keyHandler instanceof Function) document.body.removeEventListener("keydown", this._keyHandler);
+    if (!this._log || !(this._events instanceof Array)) return;
     const strLog = (this._log instanceof Array?this._log:["last"]).filter(s=>typeof(s)=="string").map(s=>s.toLowerCase());
     this._events.forEach((e,i)=>{
       if (i==this._events.length-1&&strLog.indexOf("last")>=0 || i==0&&strLog.indexOf("first")>=0 || strLog.indexOf("all")>=0)

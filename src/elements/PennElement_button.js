@@ -12,7 +12,7 @@ window.PennController._AddElementType('Button', function (PennEngine){
     r();
   }
   this.end = async function(){ 
-    if (this._log) this._clicks.forEach(c=>this.log("Click", "Click", c));
+    if (this._log && this._clicks) this._clicks.forEach(c=>this.log("Click", "Click", c));
   }
   this.value = async function () { return (this._nodes||{main:{}}).main.innerText; }
   this.actions = {

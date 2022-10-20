@@ -51,14 +51,10 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
         else window.requestAnimationFrame(()=>checkLoaded(r));
       };
       object.src = uri;
-      object.load();
-      console.log("object", object, object.readyState);
       await new Promise(r=>object.addEventListener("canplaythrough", ()=>checkLoaded(r)));
-      console.log("returning", object);
       return object;
     })
     .then( o => {
-      o.pause();
       o.currentTime = 0;
       console.log("finished loading", o, this._nodes);
       o.controls = (mediaType=="Audio"?true:false);
@@ -130,8 +126,9 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
       this._disableLayer.remove();
       this._disableLayer = undefined;
     }
-    this._events.forEach( e => ( this._log===true || this._log instanceof Array && 
-      this._log.find(s=>typeof(s)=="string"&&e[0].match(RegExp("^"+s,"i"))) ) && this.log(...e) );
+    if (this._events instanceof Array)
+      this._events.forEach( e => ( this._log===true || this._log instanceof Array && 
+        this._log.find(s=>typeof(s)=="string"&&e[0].match(RegExp("^"+s,"i"))) ) && this.log(...e) );
   };
   
   this.value = function(){                                    // Value is timestamp of last end event
@@ -149,6 +146,9 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
       else this._media.loop = true;
       this._media.muted = false;
       const p = this._media.play();
+      p.catch(e=>PennEngine.debug.error(
+        `Error playing ${this._type} element "${this._name}"; note that most browsers block playback until the user has interacted with the page via a click or a keypress`
+      ));
       if (p instanceof Promise) await p;
       r();
     },

@@ -19,8 +19,8 @@ window.PennController._AddElementType('Key', function (PennEngine){
     r();
   }
   this.end = async function(){ 
-    window.removeEventListener("keydown",this._handler);
-    if (!this._log) return;
+    if (this._handler) window.removeEventListener("keydown",this._handler);
+    if (!this._log || !this._keyEvents) return;
     this._keyEvents.forEach((k,i)=>{
       if (k.waited || this._log instanceof Array && this._log.filter(s=>typeof(s)=="string").map(s=>s.toLowerCase())
         .find(s=>s=="all" || s=="first"&&i==0 || s=="last"&&i==this._keyEvents.length-1) )

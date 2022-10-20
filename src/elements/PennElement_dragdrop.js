@@ -1,5 +1,18 @@
 window.PennController._AddElementType('DragDrop', function (PennEngine){
 
+  const nodeAtXY = (n,x,y) => {
+    const bcr = n.getBoundingClientRect();
+    return bcr.left<=x && x<=bcr.right && bcr.top<=y && y<=bcr.bottom;
+  }
+  const trialElementMatchingNode = node => {
+    const elements = PennEngine.trials.current._elements;
+    const dummy = document.createElement("DIV");
+    for (let i=0; i<elements.length; i++){
+      const n = (elements[i]._nodes||{main:dummy}).main;
+      if (n===node) return elements[i];
+    }
+    return undefined;
+  }
   const addWhat = function(what,node){  // what in ['_drags','_drops']
     let d = this[what].find(v=>v.node==node);
     if (d!==undefined) return d;
@@ -47,7 +60,9 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
   const cancelDragging = function(destination){ 
     const d = this._dragging;
     if (!d) return;
-    const dragElement = PennEngine.trials.current._elements.find(e=>(e._nodes||{main:undefined}).main==d.node);
+    // const dragElement = PennEngine.trials.current._elements.find(e=>(e._nodes||{main:undefined}).main==d.node);
+    const dragElement = trialElementMatchingNode(d.node);
+    if (dragElement===undefined) return;
     this._events.push(["Cancel",dragElement?dragElement._name:d.node.id||d.node.className||d.node.nodeName,Date.now()]);
     d.dragging = false;
     d.node.style['pointer-events'] = 'unset';
@@ -118,8 +133,10 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
     this._offset = {x: undefined, x: undefined};
     this._events = [];
     this.addEventListener("drop", (drag,drop)=>{
-      const dragElement = PennEngine.trials.current._elements.find(e=>(e._nodes||{main:undefined}).main==drag.node);
-      const dropElement = PennEngine.trials.current._elements.find(e=>(e._nodes||{main:undefined}).main==drop.node);
+      // const dragElement = PennEngine.trials.current._elements.find(e=>(e._nodes||{main:undefined}).main==drag.node);
+      // const dropElement = PennEngine.trials.current._elements.find(e=>(e._nodes||{main:undefined}).main==drop.node);
+      const dragElement = trialElementMatchingNode(drag.node);
+      const dropElement = trialElementMatchingNode(drop.node);
       this._events.push([
         "Drop",
         dragElement?dragElement._name:drag.node.id||drag.node.className||drag.node.nodeName,
@@ -133,12 +150,14 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
     this._handlers = {
       mousedown: e=>{
         // First make sure that any element being dragged goes back to its initial location
-        cancelDragging.call(this,(this.dragging||{destination:undefined}).drop);
+        if (this._dragging) cancelDragging.call(this,(this.dragging||{destination:undefined}).drop);
         if (this._disabled) return;
-        this._dragging = this._drags.find(v=>v.node===e.target);
+        this._dragging = this._drags.find(v=>nodeAtXY(v.node,e.clientX,e.clientY));
+        // this._dragging = this._drags.find(v=>v.node===e.target);
         if (this._dragging===undefined) return;
-        const dragElement = PennEngine.trials.current._elements.find(e=>(e._nodes||{main:undefined}).main==e.target);
-        this._events.push(["Drag",dragElement?dragElement._name:e.target.id||e.target.className||e.target.nodeName,Date.now()]);
+        const node = this._dragging.node;
+        const dragElement = PennEngine.trials.current._elements.find(e=>(e._nodes||{main:undefined}).main==node);
+        this._events.push(["Drag",dragElement?dragElement._name:node.id||node.className||node.nodeName,Date.now()]);
         this._dragging.dragging = true;
         this._dragging.oldStyle = {
           position: this._dragging.node.style.position,
@@ -150,7 +169,7 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
         this._dragging.placeholder = this._dragging.node.cloneNode(true);
         this._dragging.placeholder.style.visibility = 'hidden';
         // Get the BCR before changing style
-        const bcr = e.target.getBoundingClientRect(), scrollX = window.scrollX, scrollY = window.scrollY;
+        const bcr = node.getBoundingClientRect(), scrollX = window.scrollX, scrollY = window.scrollY;
         this._dragging.offset = {x: e.pageX - (bcr.left+scrollX), y: e.pageY - (bcr.top+scrollY)};
         this._dragging.node.style.position = 'absolute';
         this._dragging.node.style.top = bcr.top+scrollY;
@@ -170,7 +189,8 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
       },
       mouseup: e=>{
         if (this._disabled || this._dragging == null) return;
-        const drop = this._drops.find(v=>v.node===e.target);
+        // const drop = this._drops.find(v=>v.node===e.target);
+        const drop = this._drops.find(v=>nodeAtXY(v.node,e.clientX,e.clientY));
         if (drop===undefined) cancelDragging.call(this);
         else dropOn.call(this,this._dragging,drop);
       }
@@ -181,10 +201,12 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
     r();
   }
   this.end = async function(){ 
-    document.documentElement.removeEventListener("mousedown", this._handlers.mousedown);
-    document.documentElement.removeEventListener("mousemove", this._handlers.mousemove);
-    document.documentElement.removeEventListener("mouseup", this._handlers.mouseup);
-    if (!this._log || this._events.length==0) return;
+    if (this._handlers){
+      document.documentElement.removeEventListener("mousedown", this._handlers.mousedown);
+      document.documentElement.removeEventListener("mousemove", this._handlers.mousemove);
+      document.documentElement.removeEventListener("mouseup", this._handlers.mouseup);
+    }
+    if (!this._log || !this._events || this._events.length==0) return;
     for (let i = 0; i < this._events; i++) this.log(...this._events[i]);
   }
   this.value = async function () { return this._name; }

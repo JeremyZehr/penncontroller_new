@@ -19,7 +19,7 @@ window.PennController._AddElementType('Var', function (PennEngine){
   }
   this.end = async function(){ 
     if (!this._log) return;
-    if (this._values.length==0) this.log("Value", this._initialValue);
+    if (!(this._values instanceof Array) || this._values.length==0) this.log("Value", this._initialValue);
     for (let i = 0; i < this._values; i++)
       this.log("Value",this._values[i].value,this._values[i].date);
   }

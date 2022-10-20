@@ -29,7 +29,7 @@ window.PennController._AddElementType('Timer', function (PennEngine){
   this.end = async function(){ 
     this._running = false;
     this._startTime = false;
-    if (!this._log) return;
+    if (!this._log || !(this._events instanceof Array)) return;
     this._events.forEach(e=>this.log(...e));
   }
   this.value = async function () { return this._running; }

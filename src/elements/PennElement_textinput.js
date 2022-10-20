@@ -12,7 +12,10 @@ window.PennController._AddElementType('TextInput', function (PennEngine){
     this._lines = 1;
     this._firstKeypress = undefined;
     this._lastKeypress = undefined;
+    let keydownAfterPrint = false; // Prevent keypresses from adding characters when started before printing
     ['change','keydown','keypress','keyup'].forEach(t=>this._nodes.main.addEventListener(t,e=>{
+      if (t=="keypress" && !keydownAfterPrint) return e.preventDefault();
+      else if (t=="keydown") keydownAfterPrint = true;
       if (this._lines<=0) return;
       if (this._firstKeypress===undefined) this._firstKeypress = {key:e.key,time:Date.now()};
       this._lastKeypress = {key:e.key,time:Date.now()};
@@ -36,6 +39,7 @@ window.PennController._AddElementType('TextInput', function (PennEngine){
     });
     this._validateEvents = [];
     this.addEventListener("waited", ()=>this._validateEvents.push({text: this._nodes.main.innerText, time: Date.now()}));
+    this.addEventListener("print", ()=>(keydownAfterPrint=false) || this._nodes.main.focus());
     r();
   }
   this.end = async function(){ 
@@ -45,7 +49,7 @@ window.PennController._AddElementType('TextInput', function (PennEngine){
       this.log("FirstKeyPress", encodeURIComponent(this._firstKeypress.key), this._firstKeypress.time);
     if (strLog.indexOf("last")>=0 && this._lastKeypress)
       this.log("LastKeyPress", encodeURIComponent(this._lastKeypress.key), this._lastKeypress.time);
-    if (strLog.indexOf("validate")>=0 && this._validateEvents.length)
+    if (strLog.indexOf("validate")>=0 && this._validateEvents instanceof Array && this._validateEvents.length)
       this._validateEvents.forEach( e => this.log("Validate", encodeURIComponent(e.text), e.time) );
     if (strLog.indexOf("final")>=0) this.log("Value", encodeURIComponent(this._nodes.main.value), Date.now());
   }

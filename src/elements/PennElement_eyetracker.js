@@ -128,15 +128,10 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
   }
   const showTracker = show => { // Show/Hide the video and the tracking point
     show = !(show===false);
-    console.log("showTracker before showFaceFeedbackBox", show, webgazer);
     webgazer.showFaceFeedbackBox(show);
-    console.log("showTracker before showFaceOverlay", show, webgazer);
     webgazer.showFaceOverlay(show);
-    console.log("showTracker before showPredictionPoints", show, webgazer);
     webgazer.showPredictionPoints(show);
-    console.log("showTracker before showVideo", show, webgazer);
     webgazer.showVideo(show);
-    console.log("showTracker after showVideo", show, webgazer);
     // document.querySelector("#webgazerGazeDot").style['pointer-events'] = 'none';
   }
   const printDot = (x,y,tx,ty,color='green') => {
@@ -323,7 +318,7 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     showTracker(false);
     webgazer.removeMouseEventListeners();
     currentETElement = undefined;
-    if (this._log) {
+    if (this._log && this._elements instanceof Array && this._elements.length) {
       this.log("StartTracking","Time",this._startTime);
       const log = (param,value,time) => {
         if (typeof(trackerURL)=="string" && trackerURL.match(/^https?:/i)){

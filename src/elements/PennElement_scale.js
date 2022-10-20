@@ -102,8 +102,8 @@ window.PennController._AddElementType('Scale', function (PennEngine){
     r();
   }
   this.end = async function(){ 
-    document.body.removeEventListener("keydown", this._keysHandler);
-    if (!this._log) return;
+    if (this._keysHandler instanceof Function) document.body.removeEventListener("keydown", this._keysHandler);
+    if (!this._log || !(this._selects instanceof Array)) return;
     const strLog = (this._log instanceof Array?this._log:["last"]).filter(s=>typeof(s)=="string").map(s=>s.toLowerCase());
     this._selects.forEach((s,i)=>{
       if (i==this._selects.length-1&&strLog.indexOf("last")>=0 || i==0&&strLog.indexOf("first")>=0 || strLog.indexOf("all")>=0)

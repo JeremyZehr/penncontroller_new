@@ -293,10 +293,12 @@ window.PennController._AddElementType("MediaRecorder", function(PennEngine) {
   };
 
   this.end = async function(){
-    if (this._status == "recording" || this._status == "paused") await this.updateRecorder("stop");
+    if (this.updateRecorder instanceof Function && (this._status == "recording" || this._status == "paused"))
+      await this.updateRecorder("stop");
     this._mediaRecorder = undefined;
-    for (let b=0; b<this._blobs.length; b++)
-      if (blobs.indexOf(this._blobs[b])<0) blobs.push(this._blobs[b]);
+    if (this._blobs instanceof Array)
+      for (let b=0; b<this._blobs.length; b++)
+        if (blobs.indexOf(this._blobs[b])<0) blobs.push(this._blobs[b]);
     if (this._log) this._events.forEach(e=>this.log(...e));
   };
   

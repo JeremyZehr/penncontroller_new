@@ -19,7 +19,7 @@ Object.defineProperty(window, 'items', {
     items.push(...i);
   },
   get() { 
-    if (order.og && finalItems) return finalItems;
+    if (order.og && finalItems) return debug.on ? finalItems : [];
     const its = [];
     items.forEach(i=>{
       if (i instanceof Trial) its.push(i._asItem());
@@ -77,11 +77,9 @@ export const gotRunningOrder = new Promise(r=> {
   Object.defineProperty(window,'modifyRunningOrder',{ 
     get(){ return ro =>{
       // main.js has been executed, prevent participants from messing with debugger
-      // window.PennController.Debug = ()=>null; window.PennController.DebugOff = ()=>null;
       if (!debug.on){
         debug.show = ()=>null; 
         debug.switch = ()=>null;
-        while (items.length) items.pop();
         window.CHUNKS_DICT = {};
       }
       modifyRunningOrders.forEach( f=>ro=f(ro) );

@@ -50,7 +50,7 @@ window.PennController._AddElementType('Html', function (PennEngine){
     r();
   }
   this.end = async function(){
-    if (!this._log) return;
+    if (!this._log || !this._results) return;
     this._results.forEach(r=>this.log(...r));
   }
   this.value = async function () { return undefined; }

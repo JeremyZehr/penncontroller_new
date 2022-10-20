@@ -31,12 +31,12 @@ window.PennController._AddElementType('MouseTracker', function (PennEngine){
     r();
   }
   this.end = async function(){ 
-    window.removeEventListener('resize', this._onResize, true);
+    if (this._onResize instanceof Function) window.removeEventListener('resize', this._onResize, true);
     this._tracking = false;
     if (!this._log) return;
-    this._clicks.forEach(e=>this.log("Click",`${e[0]}:${e[1]}`,e[2]));
-    this._resizes.forEach(e=>this.log("Resize",`${e[0]}:${e[1]}`,e[2]));
-    if (this._coordinates.length>0){
+    if (this._clicks instanceof Array) this._clicks.forEach(e=>this.log("Click",`${e[0]}:${e[1]}`,e[2]));
+    if (this._resizes instanceof Array) this._resizes.forEach(e=>this.log("Resize",`${e[0]}:${e[1]}`,e[2]));
+    if (this._coordinates instanceof Array && this._coordinates.length>0){
       let prevX = this._coordinates[0][0], prevY = this._coordinates[0][1], prevDate = this._coordinates[0][2];
       let str = `x${prevX}y${prevY}w${this._initialW}h${this._initialW}`;
       this._coordinates.slice(1,).forEach(c=>{

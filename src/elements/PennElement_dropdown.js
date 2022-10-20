@@ -19,7 +19,7 @@ window.PennController._AddElementType('DropDown', function (PennEngine){
     r();
   }
   this.end = async function(){ 
-    if (!this._log || this._events.length==0) return;
+    if (!this._log || !this._events || this._events.length==0) return;
     for (let i = 0; i < this._events; i++) {
       if (this._log.match(/all/i) || i==0&&this._log.match(/first/i) || i==this._events.length-1&&this._log.match(/last/i))
         this.log(...this._events[i])
