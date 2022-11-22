@@ -36,6 +36,7 @@ window.PennController._AddElementType('Var', function (PennEngine){
       else if (value instanceof Function)
         value = await value.call(this._target,this._target._value);
       this._target._value = value;
+      if (!(this._values instanceof Array)) this._values = [];
       this._values.push({v: value, date: Date.now()});
       r();
     }
