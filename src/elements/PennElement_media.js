@@ -213,7 +213,7 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
       r();
     },
     log: function(r,...whats){
-      if (what.length==0) this._log = true;
+      if (whats.length==0) this._log = true;
       else this._log = whats;
       r();
     }

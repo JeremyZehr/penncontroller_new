@@ -1,0 +1,102 @@
+<html>
+<head>
+  <style>
+    #container {
+      display: flex;
+      flex-direction: column;
+    }
+    #container button {
+      margin: 1em auto;
+      width: 10em;
+    }
+    #output {
+      width: 100vw;
+      display: flex;
+      flex-wrap: wrap;
+      font-family: monospace;
+      word-break: break-word;
+    }
+  </style>
+</head>
+
+<body>
+
+<script>
+  function parse(){
+    const data = document.querySelector("#data").value;
+    const fields = {times: []};
+    data.split("\n").forEach(l=>{
+      const line = l.split(",");
+      if (line[8]==="EyeTracker") {
+        if (line[9]==="Times") {
+          let ex = 0, prev = 0;
+          for (let c of line[10]) {
+            if (c=="ÿ") ex += 209;
+            else {
+              prev = prev+c.charCodeAt(0)-45+ex;
+              fields.times.push(prev);
+              ex = 0;
+            }
+          }
+        }
+        else if (line[9]!="StartTracking") {
+          fields[line[9]] = [];
+          const lastbits = line[10].split('.')[0];
+          const seq = line[10].replace(/^[^.]+\./,'');
+          console.log("seq", line[9], seq);
+          for (let i=0; i<seq.length; i++){
+            const nbits = i==seq.length-1 ? lastbits : 7;
+            let gazes = (seq.charCodeAt(i)-45).toString(2);
+            while (gazes.length<nbits) gazes = `0${gazes}`;
+            fields[line[9]].push(...gazes.split(''));
+          }
+        }
+      }
+    });
+    console.log("fields", fields);
+    document.querySelector("#output").innerText = JSON.stringify(fields);
+
+    const canvas = document.querySelector("canvas");
+    if (canvas.getContext) {
+      const w = canvas.width, h = canvas.height;
+      const maxTime = fields.times[fields.times.length-1];
+      const ctx = canvas.getContext("2d");
+      ctx.strokeText("0", 0, h);
+      ctx.strokeText(fields.times[fields.times.length-1], w-ctx.measureText(maxTime).width, h);
+      const keys = Object.keys(fields).filter(k=>k!="times");
+      const step = 7;
+      keys.forEach(key=>{
+        const n = key.split('').reduce((a,b)=>a+b.charCodeAt(0),0);
+        ctx.strokeStyle = `rgb(${n%255},${(2*n)%255},${(3*n)%255})`
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        let lastX, lastY;
+        for (let i=0; i<fields[key].length; i+=step) {
+          const slc = fields[key].slice(i,i+step);
+          console.log("slc", slc);
+          const v = slc.reduce((a,b)=>parseInt(a)+parseInt(b),0) /slc.length;
+          ctx.lineTo(i*(w/fields[key].length), h*v);
+          console.log("move to", i*(w/fields[key].length), v, h*v);
+          if (i==0) {
+            ctx.strokeText(key,0,Math.max(h*v,ctx.measureText(key).actualBoundingBoxAscent));
+            console.log(h*v,h-ctx.measureText(key).actualBoundingBoxAscent);
+          }
+        }
+        ctx.stroke();
+      });
+    }
+  }
+</script>
+
+<div id='container'>
+  <textarea id='data' name='data' type='text' rows="5"></textarea>
+
+  <button onclick=parse()>Parse</button>
+  
+  <div id='output'></div>
+
+  <canvas width="800" height="400"></canvas>
+</div>
+
+</body>
+</html>

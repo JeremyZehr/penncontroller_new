@@ -24,8 +24,9 @@ export const preloadZip = async url => {
       const entryBlob = await entry.getData(new zip.BlobWriter());
       const entryURL = URL.createObjectURL(entryBlob);
       extractedFiles[filename] = [...(extractedFiles[filename]||[]),entryURL];
-      const resource = resources.find(r=>r._name==filename);
-      if (resource && resource._status=='unloaded') resource._preloader(entryURL).then( r=>resource._r(r) );
+      resources.forEach( resource => {
+        if (resource._name==filename && resource._status=='unloaded') resource._preloader(entryURL).then( r=>resource._r(r) );
+      });
   }
   await zipReader.close();
 }
