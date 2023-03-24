@@ -19,6 +19,7 @@ Object.defineProperty(window, 'items', {
     items.push(...i);
   },
   get() { 
+    console.log("getting window.items; order.og?",order.og);
     if (order.og && finalItems) return debug.on ? finalItems : [];
     const its = [];
     items.forEach(i=>{

@@ -74,7 +74,7 @@ export class Commands extends Function {
     for (let c in standardCommands.actions)
       this._getAddCommandToSequence(standardCommands.actions[c],c);
     for (let c in settings)
-      this.settings[c] = this._getAddCommandToSequence(settings[c],c);
+      this._getAddCommandToSequence(settings[c],c);
     for (let c in actions)
       this._getAddCommandToSequence(actions[c],c);
     for (let c in standardCommands.tests) {
@@ -111,7 +111,7 @@ export class Commands extends Function {
       this._sequence.push(c);
       return this; 
     }
-    this.settings[name] = f;
+    this.settings[name] = (...args)=>f.apply(this,args);
     this[name] = f;
     return f;
   }
@@ -252,8 +252,10 @@ class Element {
   }
   addResource(name,preloader) {
     let r = Resource.all[name];
-    if (r === undefined || trials.current._elements.filter(e=>e!=this).map(e=>e._resources).flat().find(r=>r._name==name))
+    if (r === undefined || trials.current._elements.filter(e=>e!=this).map(e=>e._resources).flat().find(r=>r._name==name)){
+      console.log("element",this,"adding resource",name);
       r=new Resource(name,preloader); // New resource, or already used by another element from same trial
+    }
     this._resources.push(r);
     return r._promise;
   }

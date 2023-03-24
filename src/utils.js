@@ -52,8 +52,11 @@ export async function upload(url,filename,file,mimeType){
               let obj = null;
               try{ obj = JSON.parse(this.responseText); }
               catch { obj = this.responseText; }
-              console.log("response",obj);
-              resolve(obj);
+              console.log("response",obj,"status", this.status, "this", this);
+              if (this.status>=200 && this.status<300)
+                resolve(obj);
+              else
+                reject(this.statusText);
           };
           console.log("before sending xhr");
           xhr.send();

@@ -27,59 +27,70 @@ window.PennController._AddElementType("MediaRecorder", function(PennEngine) {
 
   const constraints = {audio: false, video: false};
   const recorders = {}, mediaRecorderElements = [], blobs = [];
-  let init = false, postURL;
+  let init = false, postURL, initiateMessage;
   
+  const initiateRecorderCommand = async () => {
+    insertUploadRecordingsBeforeSendResults();
+    let message = initiateMessage;
+    if (typeof(message)=="string" && message.match(/\.html?$/i)) message = window.htmlCodeToDOM({include: message});
+    if (!(message instanceof Node) && (typeof(message)!="string" || message.length<1)) {
+      if (constraints.audio && constraints.video && texts.accessBoth) message = texts.accessBoth;
+      else {
+        if (!constraints.audio && !constraints.video)
+          PennEngine.debug.error("No audio or video stream requested; did you create at least one MediaRecorder element?");
+        else {
+          if (constraints.audio) message = "<p>"+texts.accessMicrophone+"</p>";
+          if (constraints.video) message = (message||"") + "<p>"+texts.accessWebcam+"</p>";
+        }
+      }
+      message += "<p><a href='javascript:;' class='mediarecorder-consent'>"+texts.clickToGrant+"</a></p>";
+      const span = document.createElement("SPAN");
+      span.innerHTML = message;
+      message = span;
+    }
+    document.body.querySelector(".PennController-PennController").append(message);
+    const consent = document.body.querySelector(".PennController-PennController .mediarecorder-consent");
+    consent.style.display='none';
+    let stream = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (e) {
+      message.innerHTML = "<p>Stream is inaccessible</p><p>If you are using your recording device with another application, quit it and then refresh this page</p>"
+      await new Promise(r=>null);
+    }
+    recorders.default = new MediaRecorder(stream);
+    recorders.audio = recorders.default;
+    recorders.video = recorders.default;
+    if (constraints.video){
+      const videoStream = stream.clone();
+      videoStream.getAudioTracks().map(track=>videoStream.removeTrack(track));
+      recorders.video = new MediaRecorder(videoStream);
+      const audioStream = stream.clone();
+      audioStream.getVideoTracks().map(track=>audioStream.removeTrack(track));
+      recorders.audio = new MediaRecorder(audioStream);
+    }
+    const statusElement = document.createElement("DIV");
+    statusElement.classList.add("PennController-recording-status");
+    document.body.append(statusElement);
+    [recorders.default,recorders.audio,recorders.video].forEach( r => {
+      if (!(r instanceof MediaRecorder)) return;
+      r.onstop = () => statusElement.classList.remove("PennController-recording-status-recording");
+      r.onstart = () => statusElement.classList.add("PennController-recording-status-recording");
+      r.onpause = () => statusElement.classList.remove("PennController-recording-status-recording");
+      r.onresume = () => statusElement.classList.add("PennController-recording-status-recording");
+      r.ondataavailable = e=>mediaRecorderElements.forEach(m=>m._status=="recording" && m._chunks.push(e.data));
+    });
+    consent.style.display='block';
+    await new Promise(r=>consent.onclick=r);
+    init=true;
+  }
+  initiateRecorderCommand.toString = ()=>`InitiateRecorder(${url},[message])`;
   window.PennController.newTrial.InitiateRecorder = (url,message)=>{
     if (typeof(url)!="string" || url.length<1) PennEngine.debug.warning("Invalid url passed to InitiateRecorder: "+url);
     else postURL = url;
+    initiateMessage = message;
     // InitiateRecorder returns a newTrial
-    return PennController.newTrial(
-      async ()=>{
-        insertUploadRecordingsBeforeSendResults();
-        if (typeof(message)=="string" && message.match(/\.html?$/i)) message = window.htmlCodeToDOM({include: message});
-        if (!(message instanceof Node) && (typeof(message)!="string" || message.length<1)) {
-          if (constraints.audio && constraints.video && texts.accessBoth) message = texts.accessBoth;
-          else {
-            if (constraints.audio) message = "<p>"+texts.accessMicrophone+"</p>";
-            if (constraints.video) message = (message||"") + "<p>"+texts.accessWebcam+"</p>";
-          }
-          message += "<p><a href='#' class='mediarecorder-consent'>"+texts.clickToGrant+"</a></p>";
-          const span = document.createElement("SPAN");
-          span.innerHTML = message;
-          message = span;
-        }
-        document.body.querySelector(".PennController-PennController").append(message);
-        const consent = document.body.querySelector(".PennController-PennController .mediarecorder-consent");
-        consent.style.display='none';
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        recorders.default = new MediaRecorder(stream);
-        recorders.audio = recorders.default;
-        recorders.video = recorders.default;
-        if (constraints.video){
-          const videoStream = stream.clone();
-          videoStream.getAudioTracks().map(track=>videoStream.removeTrack(track));
-          recorders.video = new MediaRecorder(videoStream);
-          const audioStream = stream.clone();
-          audioStream.getVideoTracks().map(track=>audioStream.removeTrack(track));
-          recorders.audio = new MediaRecorder(audioStream);
-        }
-        const statusElement = document.createElement("DIV");
-        statusElement.classList.add("PennController-recording-status");
-        document.body.append(statusElement);
-        [recorders.default,recorders.audio,recorders.video].forEach( r => {
-          if (!(r instanceof MediaRecorder)) return;
-          r.onstop = () => statusElement.classList.remove("PennController-recording-status-recording");
-          r.onstart = () => statusElement.classList.add("PennController-recording-status-recording");
-          r.onpause = () => statusElement.classList.remove("PennController-recording-status-recording");
-          r.onresume = () => statusElement.classList.add("PennController-recording-status-recording");
-          r.ondataavailable = e=>mediaRecorderElements.forEach(m=>m._status=="recording" && m._chunks.push(e.data));
-        });
-        consent.style.display='block';
-        await new Promise(r=>consent.onclick=r);
-        init=true;
-      }
-    )
-    .noFooter().noHeader();
+    return PennController.newTrial( initiateRecorderCommand ).noFooter().noHeader();
   };
   
   let zipFilename = PennEngine.utils.uuid();
@@ -109,6 +120,7 @@ window.PennController._AddElementType("MediaRecorder", function(PennEngine) {
       const uploadPromise = PennEngine.utils.upload(postURL,filename,fileobj,"application/zip");
       uploadPromises.push(uploadPromise);
       await uploadPromise;
+      console.log("uploadPromise", uploadPromise);
       uploadingBlobs.forEach(b=>b.uploaded=true);
       success=true;
     }
@@ -140,7 +152,7 @@ window.PennController._AddElementType("MediaRecorder", function(PennEngine) {
       message.innerHTML = "<p>"+texts.uploading+"</p>";
       controller._node.append(message);
       const promise = uploadRecordings();
-      if (noblock!==undefined) {
+      if (noblock==undefined) {
         await promise;
         await Promise.allSettled(uploadPromises);
         await new Promise(r=>setTimeout(r,100)); // leave time for blobs' status to be updated
@@ -189,7 +201,7 @@ window.PennController._AddElementType("MediaRecorder", function(PennEngine) {
         if (blobs.find(b=>b.uploaded!==true)) await uploadRecordings();  // upload the blobs that failed
         if (blobs.find(b=>b.uploaded!==true)) // if there still are unuploaded blobs, error
           this.uploadElement.innerHTML = 
-          `<strong>${blobs.find(b=>b.uploaded==true)?texts.someUploaded:texts.noneUploaded}</strong><br>${texts.sendInvitation}`;
+          `<strong style="color: red;">${blobs.find(b=>b.uploaded==true)?texts.someUploaded:texts.noneUploaded}</strong><br>${texts.sendInvitation}`;
         else
           this.uploadElement.innerText = texts.allUploaded;
       }
@@ -204,13 +216,21 @@ window.PennController._AddElementType("MediaRecorder", function(PennEngine) {
       return oldInit.call(this); 
     }
   };
-    
+
   this.immediate = function(name, type){
-    if (type===undefined) type = name || "audio";
+    if (type===undefined) type = name || "audio video";
     if (name===undefined) name = "MediaRecorder";
-    if (type.match(/audio/i) || !type.match(/video/i)) constraints.audio = true;
-    if (type.match(/video/i)) constraints.video = true;
-    this._mediaType = type;
+    this._mediaType = []
+    if (!type.match(/audio/i) && !type.match(/video/i)) type = "audio video";
+    if (type.match(/audio/i)) {
+      constraints.audio = true;
+      this._mediaType.push("audio");
+    }
+    if (type.match(/video/i)) {
+      constraints.video = true;
+      this._mediaType.push("video");
+    }
+    this._mediaType = this._mediaType.join(" ");
     this._chunks = [];
     mediaRecorderElements.push(this);
   };

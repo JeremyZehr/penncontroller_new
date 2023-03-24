@@ -87,9 +87,10 @@ window.PennController._AddElementType('DropDown', function (PennEngine){
     $wait: function(r,t) {
       let waited = false;
       this.addEventListener("select", async() => {
-        if (waited || t===undefined || !(await t.call())) return;
-         r(waited=true);
+        if (waited || (t instanceof Function && !(await t.call()))) return;
+         waited=true;
          this.dispatchEvent("waited");
+         r();
       });
     }
   }

@@ -5,7 +5,11 @@
       display: flex;
       flex-direction: column;
     }
-    #container button {
+    #container #controls {
+      max-width: 30em;
+      margin: auto;
+    }
+    #container #controls button {
       margin: 1em auto;
       width: 10em;
     }
@@ -61,18 +65,20 @@
       const w = canvas.width, h = canvas.height;
       const maxTime = fields.times[fields.times.length-1];
       const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, w, h);
+      ctx.strokeStyle = "rgb(0,0,0)";
       ctx.strokeText("0", 0, h);
       ctx.strokeText(fields.times[fields.times.length-1], w-ctx.measureText(maxTime).width, h);
       const keys = Object.keys(fields).filter(k=>k!="times");
-      const step = 7;
+      const bins = parseInt(document.querySelector("#bins").value);
       keys.forEach(key=>{
         const n = key.split('').reduce((a,b)=>a+b.charCodeAt(0),0);
         ctx.strokeStyle = `rgb(${n%255},${(2*n)%255},${(3*n)%255})`
         ctx.beginPath();
         ctx.moveTo(0, h);
         let lastX, lastY;
-        for (let i=0; i<fields[key].length; i+=step) {
-          const slc = fields[key].slice(i,i+step);
+        for (let i=0; i<fields[key].length; i+=bins) {
+          const slc = fields[key].slice(i,i+bins);
           console.log("slc", slc);
           const v = slc.reduce((a,b)=>parseInt(a)+parseInt(b),0) /slc.length;
           ctx.lineTo(i*(w/fields[key].length), h*v);
@@ -91,7 +97,7 @@
 <div id='container'>
   <textarea id='data' name='data' type='text' rows="5"></textarea>
 
-  <button onclick=parse()>Parse</button>
+  <div id='controls'><button onclick=parse()>Parse</button>  Bins: <input id='bins' type='number' min="1" max="20" value="5"/></div>
   
   <div id='output'></div>
 

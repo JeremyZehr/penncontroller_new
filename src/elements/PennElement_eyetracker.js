@@ -100,6 +100,7 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     showTracker(false);
     console.log("end setTracker");
     init = true;
+    (function face(){detectedFace=webgazer.getTracker().predictionReady; if (!detectedFace) window.requestAnimationFrame(face);})();
   }
   // Give some time for a local copy of webgazer to load before checking distant server
   setTimeout( ()=>{
@@ -111,10 +112,6 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
   }, 250);
 
   const parseData = (data,clock) => {
-    if (!detectedFace) {
-      detectedFace = true;
-      console.log("detected face!");
-    }
     if (storePoints){
       past50Array[0].push(data.x);
       past50Array[1].push(data.y);
@@ -225,7 +222,6 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     await showTracker(true);
     [...calibrationDiv.children].forEach(c=>c.remove());
     document.body.append(calibrationDiv);
-    console.log("start calibrate, detected face?", detectedFace);
     if (!detectedFace) {
       showFaceDetectionMessage();
       await new Promise(r=>(function wait(){ if (detectedFace) r(); else window.requestAnimationFrame(wait); })());

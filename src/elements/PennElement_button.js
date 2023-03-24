@@ -6,7 +6,8 @@ window.PennController._AddElementType('Button', function (PennEngine){
   }
   this.uponCreation = async function(r){
     this._nodes = {main: document.createElement("BUTTON")};
-    this._nodes.main.innerText = this._initialText;
+    // this._nodes.main.innerText = this._initialText;
+    this._nodes.main.innerHTML = this._initialText;
     this._clicks = [];
     this._nodes.main.addEventListener("click", e=>this._clicks.push(Date.now()));
     r();

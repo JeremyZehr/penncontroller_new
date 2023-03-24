@@ -39,7 +39,10 @@ const runPreloadCycle = ()=>{
     const r = resourcesToLoad.shift();
     resourcesPreloading.push(r);
     Promise.race([r._promise,new Promise(r=>setTimeout(r,ROLL_TIMEOUT))]).then(()=>{
-      if (r._status!='loaded') debug.warning("Resource "+r._name+" has not finished preloading after "+ROLL_TIMEOUT+"ms");
+      if (r._status!='loaded') {
+        debug.warning("Resource "+r._name+" has not finished preloading after "+ROLL_TIMEOUT+"ms");
+        console.log("Resource",r,"has not finished preloading after "+ROLL_TIMEOUT+"ms")
+      }
       const idx = resourcesPreloading.indexOf(r);
       if (idx>=0) resourcesPreloading.splice(idx,1);
     });

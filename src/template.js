@@ -2,30 +2,38 @@ import { items } from './order'
 import { Trial, pushItemsInNewTrial } from './trial'
 
 const tables = [];
-const DELIMITERS = [',','\t',';'];
+const DELIMITERS = [',','\t',';','\\|'];
 class Table {
-  static stripQuotes(text) { return text.replace(/^"([^"]+)"$/,"$1").replace(/^'([^']+)'$/,"$1"); }
+  static strip(text,delimiter) { // process the regexp-delimiter-parsed header and rows
+    return (text||"")
+              .replace(new RegExp(`^${delimiter}`), '')   // remove delimiter at the start
+              .replace(/^"(([^"]|\\")+)"$/, "$1")         // remove double quotes
+              .replace(/^'(([^']|\\')+)'$/, "$1");        // remove single quotes
+  }
   constructor(name){ this.name = name; }
   setContent(content){
     this.content = content;
     this.group_name = 'group';
     this.header = [];
     this.regex = null;
-    const lines = content.split(/[\n\r]+/);
+    const lines = this.content.split(/[\n\r]+/);
     if (lines.length<2) throw Error(`Table ${name} has too few rows (${lines.length}, should be >=2)`);
+    // Remove all extra empty lines
+    while (lines[lines.length-1].match(/^\W*$/)) lines.pop();
     // Find the delimiter that outputs the max number of columns
+    let chosen_delimiter = '';
     DELIMITERS.forEach(d=>{
-      const rgx = new RegExp(`("[^"]+"|'[^']+'|[^${d}]+)`,'g');
+      const rgx = new RegExp(`(^|${d})("([^"]|\\")*"|'([^']|\\')*'|[^${d}]*)`,'g');
       const cols = lines[0].match(rgx), firstline = lines[1].match(rgx);
-      if (lines[0].endsWith(d)) cols.push("");
-      if (lines[1].endsWith(d)) firstline.push("");
-      if (cols && firstline && cols.length == firstline.length && cols.length > this.header.length){
-        this.header = cols.map(c=>Table.stripQuotes(c));
+      // Must be consistent (same # of cells for header & 1st row) and exhaustive (regexp captures all chars)
+      if (cols && firstline && cols.length == firstline.length && cols.length > this.header.length && cols.join('').length==lines[0].length){
+        this.header = cols.map(c=>Table.strip(c,d));
         this.regex = rgx;
+        chosen_delimiter = d;
       }
     });
-    lines.shift();
-    this._rows = lines.map( l=>(l.match(this.regex)||[]).map(c=>Table.stripQuotes(c)) );
+    lines.shift();  // remove header from lines
+    this._rows = lines.map( l=>(l.match(this.regex)||[]).map(c=>Table.strip(c,chosen_delimiter)) );
     this._rows = this._rows.filter( r=>r.length>0 );
     return this;
   }
@@ -77,8 +85,10 @@ export class Template {
       this.table_name = table_ref_or_name;
     this.fn = fn;
     this._extra_columns = [];
+    this._items = undefined;
   }
   _asItems() {
+    if (this._items instanceof Array) return this._items;
     const its = [];
     let table;
     if (this.table instanceof Table)
@@ -111,6 +121,8 @@ export class Template {
       its.push(item);
     });
     pushItemsInNewTrial(true);
+    // Store the items for future reference; do not re-run this.fn next time _asItems is called
+    this._items = its;
     return its;
   }
   log(name,value) { this._extra_columns.push([name,value]); return this; }
