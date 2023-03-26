@@ -62,11 +62,11 @@ window.PennController._AddElementType('Html', function (PennEngine){
       if (this._nodes.main instanceof Node && document.documentElement.contains(this._nodes.main))
         this._nodes.main.querySelector("a.Message-continue-link").style.display = 'block';
       let waited = false;
-      this.addEventListener("finishedCallback", async ()=>{
+      this.addEventListener("finishedCallback", PennEngine.utils.parallel(async ()=>{
         if (waited || (t instanceof Function && !(await t.call()))) return;
         this.dispatchEvent("waited");
         r(waited=true);
-      });
+      }));
     },
     warn: function(r) { 
       if (incompleteFields.call(this).length==0) return r();

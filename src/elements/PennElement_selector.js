@@ -86,10 +86,10 @@ window.PennController._AddElementType('Selector', function (PennEngine){
       r();
     },
     $callback: async function(r,...c) {
-      this.addEventListener("select", async ()=>{
+      this.addEventListener("select", PennEngine.utils.parallel(async ()=>{
         for (let i=0; i < c.length; i++)
           if (c[i] instanceof Function) await c[i].call();
-      });
+      }));
       r();
     },
     $remove: async function(r,...c) {
@@ -117,12 +117,12 @@ window.PennController._AddElementType('Selector', function (PennEngine){
     },
     $wait: async function(r,t){
       let waited = false;
-      this.addEventListener("select",async ()=>{
+      this.addEventListener("select", PennEngine.utils.parallel(async ()=>{
         if (waited || (t instanceof Function && !(await t.call()))) return;
         waited = true;
         this.dispatchEvent("waited");
         r();
-      });
+      }));
     }
   }
   this.settings = {
@@ -131,7 +131,7 @@ window.PennController._AddElementType('Selector', function (PennEngine){
     frame: function(r,style){
       this.addEventListener("select", e=>{
         if (this._frame instanceof Node) this._frame.remove();
-        this._frame = document.createElement("DIV");
+        this._frame = this._frame || document.createElement("DIV");
         this._frame.style.position = 'absolute';
         const bcr = e._nodes.main.getBoundingClientRect();
         this._frame.style.width = bcr.width;

@@ -41,10 +41,10 @@ window.PennController._AddElementType('DropDown', function (PennEngine){
       r();
     },
     $callback: function(r,...c) {
-      this.addEventListener("select", async ()=>{
+      this.addEventListener("select", PennEngine.utils.parallel(async ()=>{
         for (let i = 0; i < c.length; i++)
           if (c[i] instanceof Function) await c[i].call(PennEngine.trials.current,this._nodes.main.selectedOptions[0]);
-      });
+      }));
       r();
     },
     log: function(r,what){
@@ -86,12 +86,12 @@ window.PennController._AddElementType('DropDown', function (PennEngine){
     },
     $wait: function(r,t) {
       let waited = false;
-      this.addEventListener("select", async() => {
+      this.addEventListener("select", PennEngine.utils.parallel(async() => {
         if (waited || (t instanceof Function && !(await t.call()))) return;
          waited=true;
          this.dispatchEvent("waited");
          r();
-      });
+      }));
     }
   }
   this.test = {

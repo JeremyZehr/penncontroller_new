@@ -21,7 +21,8 @@ window.PennController._AddElementType('Timer', function (PennEngine){
         this._events.push(["Ended", "NA", Date.now()]);
         this.dispatchEvent("elapsed");
       }
-      window.requestAnimationFrame(this._callback);
+      // window.requestAnimationFrame(this._callback);
+      setTimeout(()=>this._callback(Date.now())); // Faster than requestAnimationFrame
     };
     this._callback();
     r();
@@ -35,10 +36,10 @@ window.PennController._AddElementType('Timer', function (PennEngine){
   this.value = async function () { return this._running; }
   this.actions = {
     $callback: async function(r,...c) {
-      this.addEventListener("elapsed", async ()=>{
+      this.addEventListener("elapsed", PennEngine.utils.parallel(async ()=>{
         for (let i=0; i < c.length; i++)
           if (c[i] instanceof Function) await c[i].call();
-      });
+      }));
       r();
     },
     pause: async function(r){
@@ -67,15 +68,16 @@ window.PennController._AddElementType('Timer', function (PennEngine){
       this._startTime = undefined;
       this._events.push(["Stopped","NA",Date.now()]);
       this.dispatchEvent("elapsed");
+      r();
     },
     $wait: async function(r,t){
       let waited = false;
-      this.addEventListener("elapsed",async ()=>{
+      this.addEventListener("elapsed", PennEngine.utils.parallel(async ()=>{
         if (waited || (t instanceof Function && !(await t.call()))) return;
         waited = true;
         this.dispatchEvent("waited");
         r();
-      });
+      }));
     }
   }
   this.test = {

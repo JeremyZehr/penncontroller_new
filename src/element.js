@@ -79,11 +79,11 @@ export class Commands extends Function {
       this._getAddCommandToSequence(actions[c],c);
     for (let c in standardCommands.tests) {
       this._getTest(standardCommands.tests[c],c);
-      this._getTest(function(...args){ return ! standardCommands.tests[c].call(this,...args); },c,'not');
+      this._getTest(standardCommands.tests[c],c,'not');
     }
     for (let c in tests) {
       this._getTest(tests[c],c);
-      this._getTest(function(...args){ return ! tests[c].call(this,...args); },c,'not');
+      this._getTest(tests[c],c,'not');
     }
   }
   _getItemNumber() {
@@ -136,6 +136,7 @@ export class Commands extends Function {
         args = args.map(a=>(a instanceof Self?a.call(that._element):a));
         const ors = [];
         ors[0] = await test.call(that._element,...args);
+        if (not) ors[0] = !ors[0];
         for (let t = 0; t < tests.length; t++){
           if (!(tests[t].test instanceof Function)) continue; // Instances of Commands are instances of Function
           if (tests[t].type=='or') ors.push(true);

@@ -18,21 +18,21 @@ window.PennController._AddElementType('Button', function (PennEngine){
   this.value = async function () { return (this._nodes||{main:{}}).main.innerText; }
   this.actions = {
     $callback: function(r,...rest) {
-      this._nodes.main.addEventListener("click", async e=>{
+      this._nodes.main.addEventListener("click", PennEngine.utils.parallel(async e=>{
         for (let i = 0; i < rest.length; i++)
           if (rest[i] instanceof Function) await rest[i].call();
-      });
+      }));
       r();
     },
     click: function(r) { this._nodes.main.click(); r(); },
     text: function (r,text) { r(this._nodes.main.innerText = text); },
     $wait: function(r,t) { 
       let waited = false;
-      this._nodes.main.addEventListener('click',async e=>{
+      this._nodes.main.addEventListener('click',PennEngine.utils.parallel(async e=>{
         if (waited || (t instanceof Function && !(await t.call()))) return;
         this.dispatchEvent("waited");
         r(waited=true);
-      });
+      }));
     },
   }
   this.test = {

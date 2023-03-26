@@ -177,11 +177,11 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
     $wait: function(r, t){
       if (t=="first" && this._hasPlayed) return r();
       let waited = false;
-      this.addEventListener('ended',async e=>{
+      this.addEventListener('ended', PennEngine.utils.parallel(async e=>{
         if (waited || (t instanceof Function && !(await t.call()))) return;
         this.dispatchEvent("waited");
         r(waited=true);
-      });
+      }));
     }
   };
   
@@ -189,10 +189,10 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
     /* $AC$ Audio PElement.callback(commands) Will run the commands when playback ends $AC$ */
     /* $AC$ Video PElement.callback(commands) Will run the commands when playback ends $AC$ */
     $callback: async function(r, ...c){
-      this.addEventListener('ended',async e=>{
+      this.addEventListener('ended', PennEngine.utils.parallel(async e=>{
         for (let i=0; i<c.length; i++)
           if (c[i] instanceof Function) await c[i].call();
-      });
+      }));
       r();
     },
     /* $AC$ Audio PElement.disable(opacity) Disables the interface $AC$ */

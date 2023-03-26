@@ -8,17 +8,19 @@ window.PennController._AddElementType('Scale', function (PennEngine){
     if (this._scaleType != "slider")
       for (let i = 0; i < this._nPoints; i++){
         const cell = document.createElement("DIV");
-        const label = document.createElement("DIV");
-        label.append(this._labels.length>i?this._labels[i]:i);
         const v = this._values.length>i?this._values[i]:i;
         const input = document.createElement("INPUT");
         input.name = 'PennController-'+this._type+'-'+this._name;
+        input.id = input.name+'-'+i;
         input.value = (typeof(v)=="string"||typeof(v)=="number")?v:i;
         input.type = this._scaleType;
         if (input.value==this._value && (this._scaleType=="radio"||this._scaleType=="checkbox")) input.checked = true;
-        input.onclick = ()=>this.dispatchEvent("select", input.value, this._scaleType=='checkbox'?input.checked:undefined);
+        input.onchange = ()=>this.dispatchEvent("select", input.value, this._scaleType=='checkbox'?input.checked:undefined);
         cell.append(input);
         cell.style.display = 'flex';
+        const label = document.createElement("LABEL");
+        label.htmlFor = input.id;
+        label.append(this._labels.length>i?this._labels[i]:i);
         if (["right","left"].indexOf(this._labelsPosition)>=0) cell.style['flex-direction'] = 'row';
         else if (["top","bottom"].indexOf(this._labelsPosition)>=0) cell.style['flex-direction'] = 'column';
         if (["right","bottom"].indexOf(this._labelsPosition)>=0) cell.append(label);
@@ -113,10 +115,10 @@ window.PennController._AddElementType('Scale', function (PennEngine){
   this.value = async function () { return this._value; }
   this.actions = {
     $callback: function(r,...rest) {
-      this._nodes.main.addEventListener("select", async v=>{
+      this.addEventListener("select", PennEngine.utils.parallel(async v=>{
         for (let i = 0; i < rest.length; i++)
           if (rest[i] instanceof Function) await rest[i].call(PennEngine.trials.current,v);
-      });
+      }));
       r();
     },
     select: async function(r,v,o){
@@ -141,11 +143,11 @@ window.PennController._AddElementType('Scale', function (PennEngine){
     },
     $wait: function(r,t) { 
       let waited = false;
-      this.addEventListener("select",async v=>{
+      this.addEventListener("select", PennEngine.utils.parallel(async v=>{
         if (waited || (t instanceof Function && !(await t.call(PennEngine.trials.current,v)))) return;
         this.dispatchEvent("waited");
         r(waited=true);
-      });
+      }));
     },
   }
   this.settings = {

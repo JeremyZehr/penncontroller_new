@@ -34,7 +34,7 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
       if (els[i] instanceof PennEngine.Commands){
         await els[i].call();
         const node = (els[i]._element._nodes||{main: undefined}).main;
-        if (node===undefined) els[i]._element.addEventListener("print", ()=>addWhat.call(this,what,els[i]._element._nodes.main));
+        if (node===undefined) els[i]._element.addEventListener("print", ()=>PennEngine.utils.parallel(addWhat.call(this,what,els[i]._element._nodes.main)));
         else addWhat.call(this,what,node);
       }
       else if (els[i] instanceof Function){
@@ -214,10 +214,10 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
     $addDrag: async function(r,...els) { await addWhatCommand.call(this,'_drags', els); r(); },
     $addDrop: async function(r,...els) { await addWhatCommand.call(this,'_drops', els); r(); },
     $callback: function(r,...c) {
-      this.addEventListener("drop", async() => {
+      this.addEventListener("drop", PennEngine.utils.parallel(async() => {
         for (let i = 0; i < c.lengths; i++)
           if (c instanceof Function) await c.call();
-      });
+      }));
       r();
     },
     $drop: async function(r,x,y){
@@ -229,9 +229,9 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
     $removeDrag: async function(r,...els){ await removeWhat.call(this,'_drags', els); r(); },
     $removeDrop: async function(r,...els){ await removeWhat.call(this,'_drops', els); r(); },
     $wait: function(r,t) {
-      this.addEventListener("drop", async() => {
+      this.addEventListener("drop", PennEngine.utils.parallel(async() => {
         if (t===undefined || (await t.call())) r(t=undefined);
-      });
+      }));
     }
   }
   this.settings = {

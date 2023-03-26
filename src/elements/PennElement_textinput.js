@@ -57,12 +57,12 @@ window.PennController._AddElementType('TextInput', function (PennEngine){
   this.actions = {
     text: function (r,text) { r(this._nodes.main.value = text); },
     $wait: function(r,t) { 
-      this._nodes.main.addEventListener('keydown',async e=>{
+      this._nodes.main.addEventListener('keydown', PennEngine.utils.parallel(async e=>{
         if (e.key != "Enter") return true;
         if (t instanceof Function && !(await t.call())) return true;
         this.dispatchEvent("waited");
         r(t=undefined);
-      });
+      }));
     },
   }
   this.settings = {

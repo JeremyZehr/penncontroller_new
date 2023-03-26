@@ -361,21 +361,21 @@ window.PennController._AddElementType("MediaRecorder", function(PennEngine) {
     $wait: function(r, t){
       if (t=="first" && this._blobs.length>0) return r();
       let waited = false;
-      this.addEventListener(t=="playback"?"playback_over":"recorded",async e=>{
+      this.addEventListener(t=="playback"?"playback_over":"recorded", PennEngine.utils.parallel(async e=>{
         if (waited || (t instanceof Function && !(await t.call()))) return;
         this.dispatchEvent("waited");
         r(waited=true);
-      });
+      }));
     }
   };
   
   this.settings = {
     /* $AC$ MediaRecorder PElement.callback(commands) Will run the commands when recording ends $AC$ */
     $callback: async function(r, ...c){
-      this.addEventListener("recorded",async e=>{
+      this.addEventListener("recorded", PennEngine.utils.parallel(async e=>{
         for (let i=0; i<c.length; i++)
           if (c[i] instanceof Function) await c[i].call();
-      });
+      }));
       r();
     },
     /* $AC$ MediaRecorder PElement.disable() Disables recording capabilities $AC$ */

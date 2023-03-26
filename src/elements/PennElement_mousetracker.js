@@ -58,13 +58,13 @@ window.PennController._AddElementType('MouseTracker', function (PennEngine){
     stop: async function(r){ this._tracking = false; r(); },
     $wait: async function(r,t){
       let waited = false;
-      this.addEventListener("action", async what=>{
+      this.addEventListener("action", PennEngine.utils.parallel(async what=>{
         if (waited || (t instanceof Function && !(await t.call()))) return;
         if (typeof(t)=="string" && t.length>0 && t!=what) return;
         waited = true;
         this.dispatchEvent("waited");
         r();
-      });
+      }));
     }
   }
   this.test = {

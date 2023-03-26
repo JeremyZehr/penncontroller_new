@@ -385,13 +385,13 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     },
     calibrate: async function(r,threshold,attempts){ await calibrate(threshold,attempts); this._calibrated = true; r(); },
     $callback: async function(r,...commands) {
-      this.addEventListener("data", async (data,clock)=>{
+      this.addEventListener("data", PennEngine.utils.parallel(async (data,clock)=>{
         for (let i=0; i<commands.length; i++){
           const command = commands[i];
           if (command instanceof PennEngine.Commands) await command.call();
           else if (command instanceof Function) await command.call(data.x,data.y,clock);
         }
-      });
+      }));
       r();
     },
     hideFeedback: function(r){ showTracker(false).then(r); },

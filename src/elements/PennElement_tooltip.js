@@ -119,12 +119,12 @@ window.PennController._AddElementType('Tooltip', function (PennEngine){
   this.actions = {
     $wait: async function(r,t){
       let waited = false;
-      this.addEventListener("validate",async ()=>{
+      this.addEventListener("validate", PennEngine.utils.parallel(async ()=>{
         if (waited || (t instanceof Function && !(await t.call()))) return;
         waited = true;
         this.dispatchEvent("waited");
         r();
-      });
+      }));
     }
   }
   this.settings = {

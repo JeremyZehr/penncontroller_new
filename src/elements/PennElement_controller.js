@@ -45,18 +45,18 @@ window.PennController._AddElementType('Controller', function (PennEngine){
   this.value = async function () { return this._name; }
   this.actions = {
     $callback: function(r,...rest) {
-      this.addEventListener("waited", async ()=>{
+      this.addEventListener("waited", PennEngine.utils.parallel(async ()=>{
         for (let i = 0; i < rest.length; i++)
           if (rest[i] instanceof Function)
             await rest[i].call();
-      });
+      }));
       r();
     },
     $wait: function(r,t){
-      this.addEventListener("waited", async ()=>{
+      this.addEventListener("waited", PennEngine.utils.parallel(async ()=>{
         if (t instanceof Function && !(await t.call(this)))  return;
         r(t=undefined);
-      });
+      }));
     }
   }
 });

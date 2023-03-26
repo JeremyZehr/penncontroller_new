@@ -2,7 +2,7 @@ window.PennController._AddElementType('Text', function (PennEngine){
   this.immediate = function(name,text){ 
     if (name===undefined) name = "Text";
     if (text===undefined) text = name;
-    text = text.replace(/(^\s+|\s+$)/g,m=>[...Array(m.length)].map(v=>"&nbsp;").join(''));
+    text = String(text).replace(/(^\s+|\s+$)/g,m=>[...Array(m.length)].map(v=>"&nbsp;").join(''));
     this._initialText = text;
   }
   this.uponCreation = async function(r){
@@ -56,12 +56,12 @@ window.PennController._AddElementType('Text', function (PennEngine){
     $wait: async function(r,t){
       if (!this._unfolding) return r(PennEngine.debug.warning("Cannot wait for a non-unfolding Text element"));
       let waited = false;
-      this.addEventListener("unfolded",async ()=>{
+      this.addEventListener("unfolded", PennEngine.utils.parallel(async ()=>{
         if (waited || (t instanceof Function && !(await t.call()))) return;
         waited = true;
         this.dispatchEvent("waited");
         r();
-      });
+      }));
     }
   }
   this.settings = {
