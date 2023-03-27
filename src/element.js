@@ -296,11 +296,15 @@ export const addElementType = (type, proto) => {
     const commands = new Commands(element,p.actions,p.settings,p.test);
     commands._sequence.push(()=>element._init());
     if (trials.current._defaults[type] instanceof Array)
-      trials.current._defaults[type].forEach(v=>{
-        if (v.name.startsWith("test.")) commands.test[v.name.replace(/^test\./,'')](...v.args);
-        else if (v.name.startsWith("testNot.")) commands.testNot[v.name.replace(/^testNot\./,'')](...v.args);
-        else commands[v.name](...v.args);
-      });
+      trials.current._defaults[type].reduce((p,v)=>{
+        let thisFn;
+        if (v.name.startsWith("test.")) thisFn=[p.test,p.test[v.name.replace(/^test\./,'')]];
+        else if (v.name.startsWith("testNot.")) thisFn=[p.testNot,p.testNot[v.name.replace(/^testNot\./,'')]];
+        else thisFn=[p,p[v.name]];
+        if (thisFn && thisFn[1] instanceof Function) p=thisFn[1].apply(thisFn[0],v.args);
+        else debug.error(`Could not find command default${type}.<strong>${v.name}</strong>`);
+        return p;
+      }, commands);
     return commands;
   }
   elements['get'+type] = name => {
