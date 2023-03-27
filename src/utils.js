@@ -18,7 +18,7 @@ export const waitUntil = condition => new Promise(r=>{
 });
 
 // returns a non-async version of the function that will run it in parallel to the local thread
-export const parallel = fn => ()=>{ fn instanceof Function ? fn() : 0; 1; }
+export const parallel = function (fn) { return (...args)=>{ fn instanceof Function ? fn.apply(this,args) : 0; 1; }; }
 
 export const addStylesheet = css => {
   const link = document.createElement('link');

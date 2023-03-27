@@ -11,11 +11,13 @@ window.PennController._AddElementType('Key', function (PennEngine){
     this._keyEvents = [];
     const trial = PennEngine.trials.current;
     this._handler = e=>{
+      if (e.repeat) return;
       if (trial!=PennEngine.trials.current || PennEngine.utils.keyMatch(e,this._initialKeys)<0 || this._disabled) return;
       this._keyEvents.push({key:(e.ctrlKey||e.altKey||e.shiftKey?PennEngine.utils.fullKey(e):e.key),date:Date.now(),e:e});
       this.dispatchEvent("keydown", e);
+      return true;
     };
-    window.addEventListener("keydown",PennEngine.utils.parallel(this._handler));
+    window.addEventListener("keydown",this._handler);
     r();
   }
   this.end = async function(){ 

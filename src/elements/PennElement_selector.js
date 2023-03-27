@@ -25,6 +25,7 @@ window.PennController._AddElementType('Selector', function (PennEngine){
     };
     document.body.addEventListener("click", this._clickHandler, true);
     this._keyHandler = e=>{
+      if (e.repeat) return;
       const idx = PennEngine.utils.keyMatch(e,this._keys);
       if (idx<0 || idx>this._elements.length) return;
       this.dispatchEvent("select", this._elements[idx]);

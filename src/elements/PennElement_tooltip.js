@@ -17,10 +17,13 @@ window.PennController._AddElementType('Tooltip', function (PennEngine){
     this._label.addEventListener("click", ()=>this._clicksEnabled && this.dispatchEvent("validate"));
     this.addEventListener("validate", ()=>this._nodes && this._nodes.parent instanceof Node && this._nodes.parent.remove());
     this._keys = undefined;
-    document.body.addEventListener("keydown", e=>{
+    this._keydown =  e=>{
+      if (e.repeat) return;
       if (!this._nodes || !(this._nodes.main instanceof Node) || !document.documentElement.contains(this._nodes.main)) return;
       if (this._keys && PennEngine.utils.keyMatch(e,this._keys)>=0) this.dispatchEvent("validate");
-    });
+      return true;
+    };
+    document.body.addEventListener("keydown", this._keydown);
     this._prints = [];
     this.addEventListener("print", (...args)=>this._prints.push({date: Date.now(), args: args}) );
     this._position = "bottom right";
@@ -105,11 +108,18 @@ window.PennController._AddElementType('Tooltip', function (PennEngine){
           this._nodes.main.style.width = "auto";
           this._nodes.main.style.position = "static";
         }
+        if (this._label.innerText) {
+          if (!this._nodes.main.contains(this._label)) this._nodes.main.append(this._label);
+          if (this._clicksEnabled) this._label.style.cursor = "pointer";
+          else this._label.style.cursor = "unset";
+        }
+        else this._label.remove();
       }
     });
     r();
   }
   this.end = async function(){ 
+    if (this._keydown instanceof Function) document.body.removeEventListener("keydown",this._keydown);
     if (!this._log) return;
     if (!(this._prints instanceof Array) || this._prints.length==0) this.log("Print", "", null, "Never printed");
     for (let i = 0; i < this._prints; i++)

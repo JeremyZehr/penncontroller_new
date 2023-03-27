@@ -91,6 +91,7 @@ window.PennController._AddElementType('Scale', function (PennEngine){
     });
     this._keys = [];
     this._keysHandler = e=>{
+      if (e.repeat) return;
       const idx = PennEngine.utils.keyMatch(e,this._keys);
       if (idx<0) return;
       const v = this._values[idx];
