@@ -108,16 +108,17 @@ export class Template {
     if (table===undefined) return its;
     // Prevent any newTrial command in this.fn from pushing items (items already contains Template at right position)
     pushItemsInNewTrial(false);
-    table.rows.forEach( row => {
+    table.rows.forEach( (row,n) => {
       let item = this.fn(row);
       if (item instanceof Trial){
         item = item._asItem();
         if (table.latin){
           const latin_name = table.header.find(v=>v.toLowerCase()==table.latin.toLowerCase());
-          if (latin_name)
-          its[0] = [its[0],row[latin_name]];
+          if (latin_name) item[0] = [item[0],row[latin_name]];
         }
       }
+      // Add template info to every element's options, to be used in the debugger
+      item.forEach((c,i)=>(i+1)%3==0?c._pcibexTable={name: this.table_name, row: n}:0);
       its.push(item);
     });
     pushItemsInNewTrial(true);

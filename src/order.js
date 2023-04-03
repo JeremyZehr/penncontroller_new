@@ -9,17 +9,19 @@ Object.defineProperty(window, 'shuffleSequence', {get(){ return (seq||window.seq
 export const items = [];
 let finalItems = [];
 Object.defineProperty(window, 'items', {
-  set(i) { 
+  set(i) {
+    if (!(i instanceof Array)) debug.error("items should be an array");
+    else if (i.find(c=>!(c instanceof Array)||c.length<2)) debug.error("items must consist of subarrays of arity 3+");
     const flatI = i.flat();
     // Exclude any trial added by newTrial which is in fact included in the setting of items
-    const itemsNoRedundance = items.filter( v=>!flatI.find(w=>w==v[2]) );
+    const itemsNoRedundance = items.filter( v=> !flatI.find(w=>w==v||w==v[2]) );
     while (items.length) items.pop();
     items.push(...itemsNoRedundance);
     // Now add the items
     items.push(...i);
   },
   get() { 
-    console.log("getting window.items; order.og?",order.og);
+    // console.log("getting window.items; order.og?",order.og);
     if (order.og && finalItems) return debug.on ? finalItems : [];
     const its = [];
     items.forEach(i=>{
@@ -51,7 +53,11 @@ const refreshSequence = async () => {
     const ul = document.createElement("UL");
     t.forEach( e=> {
       const ulli = document.createElement("LI");
-      ulli.innerHTML = `<strong>${(e.type||'No Label').toString()}</strong> (${e.controller.toString()})`;
+      ulli.innerHTML = `<strong>${(e.type||'No Label').toString()}</strong> 
+                        (${e.controller.toString()}, ${e.itemNumber}:${e.elementNumber}${
+                          e.options._pcibexTable ? '; '+e.options._pcibexTable.name+':'+e.options._pcibexTable.row : ''
+                        })`;
+      
       ul.append(ulli);
       if (progressBar) {
         const defaultCountsForProgressBar = window.ibex_controller_get_property(e.controller, "countsForProgressBar");
