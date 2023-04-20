@@ -22,7 +22,7 @@ window.PennController._AddElementType('Timer', function (PennEngine){
         this.dispatchEvent("elapsed");
       }
       // window.requestAnimationFrame(this._callback);
-      setTimeout(()=>this._callback(Date.now())); // Faster than requestAnimationFrame
+      setTimeout(()=>this._callback(performance.now())); // Faster than requestAnimationFrame
     };
     this._callback();
     r();

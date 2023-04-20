@@ -21,14 +21,13 @@ Object.defineProperty(window, 'items', {
     items.push(...i);
   },
   get() { 
-    // console.log("getting window.items; order.og?",order.og);
     if (order.og && finalItems) return debug.on ? finalItems : [];
     const its = [];
-    items.forEach(i=>{
+    for (let i of items) {
       if (i instanceof Trial) its.push(i._asItem());
       else if (i instanceof Template) its.push(...i._asItems());
       else its.push(i);
-    });
+    }
     its.push = (...i)=>items.push(...i); its.pop = (...i)=>items.pop(...i);
     its.unshift = (...i)=>items.unshift(...i); its.shift = (...i)=>items.shift(...i);
     its.splice = (...i)=>items.splice(...i);
@@ -149,7 +148,6 @@ export const jumpToItem = async (item,endNow=true) => {
 export const jump = async predicate => {
   await gotRunningOrder;
   if (typeof(predicate)=="string") predicate = ((p)=>s=>s==p)(predicate);
-  console.log("predicate", predicate, "originalRunningOrder", originalRunningOrder);
   const item = originalRunningOrder.find(v=>predicate(v[0].type));
   if (item) jumpToItem(item,/*endNow=*/false);
   else debug.warning(`No trial found matching jump's argument ${predicate}`);
