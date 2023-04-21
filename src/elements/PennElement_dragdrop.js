@@ -1,5 +1,12 @@
 window.PennController._AddElementType('DragDrop', function (PennEngine){
 
+  const pauseEvent = e=>{
+    if(e.stopPropagation) e.stopPropagation();
+    if(e.preventDefault) e.preventDefault();
+    e.cancelBubble=true;
+    e.returnValue=false;
+    return false;
+  }
   const nodeAtXY = (n,x,y) => {
     const bcr = n.getBoundingClientRect();
     return bcr.left<=x && x<=bcr.right && bcr.top<=y && y<=bcr.bottom;
@@ -82,9 +89,10 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
     this._dragging = null;
   }
   const dropOn = function(d,destination) {
+    console.log("dropping",d,"on",destination);
     d.dragging = false;
     if (this._single && destination.drag.length>0){
-      if (!this._swap) return cancelDragging.call(this,this.dragging.drop); // Back to original location
+      if (!this._swap) return cancelDragging.call(this,this._dragging.drop); // Back to original location
       const previous = destination.drag.shift();
       d.placeholder.parentElement.insertBefore(previous.node,d.placeholder);
       previous.drop = d.drop;
@@ -121,10 +129,10 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
 
   this.immediate = function(name,...params){ 
     if (name===undefined) name = "DragDrop";
-    [name,...params].forEach(v=>{
-      if (typeof(v) !== "string") return;
+    for (let v of [name,...params]) {
+      if (typeof(v) !== "string") continue;
       this['_initial'+v[0].toUpperCase()+v.substring(1,).toLowerCase()] = true;
-    });
+    };
   }
   this.uponCreation = async function(r){
     this._bungee = this._initialBungee;
@@ -150,7 +158,7 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
     this._handlers = {
       mousedown: e=>{
         // First make sure that any element being dragged goes back to its initial location
-        if (this._dragging) cancelDragging.call(this,(this.dragging||{destination:undefined}).drop);
+        if (this._dragging) cancelDragging.call(this,(this._dragging||{destination:undefined}).drop);
         if (this._disabled) return;
         this._dragging = this._drags.find(v=>nodeAtXY(v.node,e.clientX,e.clientY));
         // this._dragging = this._drags.find(v=>v.node===e.target);
@@ -179,12 +187,16 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
         // Insert placholder before changing the target node's parent
         this._dragging.node.parentElement.insertBefore(this._dragging.placeholder,this._dragging.node);
         document.documentElement.append(this._dragging.node);
+        // prevent selection
+        return pauseEvent(e);
       },
       mousemove: e=>{
         if (this._disabled || this._dragging == null) return;
         if (this._dragging.node instanceof Node) {
           this._dragging.node.style.top = e.pageY - this._dragging.offset.y;
           this._dragging.node.style.left = e.pageX - this._dragging.offset.x;
+          // prevent selection
+          return pauseEvent(e);
         }
       },
       mouseup: e=>{
