@@ -12,11 +12,11 @@ class Table {
   }
   constructor(name){ this.name = name; }
   setContent(content){
-    this.content = content;
-    this.group_name = 'group';
-    this.header = [];
-    this.regex = null;
-    const lines = this.content.split(/[\n\r]+/);
+    this._content = content;
+    this._group_name = 'group';
+    this._header = [];
+    this._regex = null;
+    const lines = this._content.split(/[\n\r]+/);
     if (lines.length<2) throw Error(`Table ${name} has too few rows (${lines.length}, should be >=2)`);
     // Remove all extra empty lines
     while (lines[lines.length-1].match(/^\W*$/)) lines.pop();
@@ -26,25 +26,25 @@ class Table {
       const rgx = new RegExp(`(^|${d})("([^"]|\\")*"|'([^']|\\')*'|[^${d}]*)`,'g');
       const cols = lines[0].match(rgx), firstline = lines[1].match(rgx);
       // Must be consistent (same # of cells for header & 1st row) and exhaustive (regexp captures all chars)
-      if (cols && firstline && cols.length == firstline.length && cols.length > this.header.length && cols.join('').length==lines[0].length){
-        this.header = cols.map(c=>Table.strip(c,d));
-        this.regex = rgx;
+      if (cols && firstline && cols.length == firstline.length && cols.length > this._header.length && cols.join('').length==lines[0].length){
+        this._header = cols.map(c=>Table.strip(c,d));
+        this._regex = rgx;
         chosen_delimiter = d;
       }
     });
     lines.shift();  // remove header from lines
-    this._rows = lines.map( l=>(l.match(this.regex)||[]).map(c=>Table.strip(c,chosen_delimiter)) );
+    this._rows = lines.map( l=>(l.match(this._regex)||[]).map(c=>Table.strip(c,chosen_delimiter)) );
     this._rows = this._rows.filter( r=>r.length>0 );
     return this;
   }
   _rowAsObject(row) { 
     const o = {};
-    this.header.forEach( h=>o[h] = '' );
-    row.forEach( (v,i)=>o[this.header[i]] = v ); 
+    this._header.forEach( h=>o[h] = '' );
+    row.forEach( (v,i)=>o[this._header[i]] = v ); 
     return o;
   }
   get groups() { 
-    const group_n = this.header.findIndex(v=>v.toLowerCase()==this.group_name.toLowerCase());
+    const group_n = this._header.findIndex(v=>v.toLowerCase()==this._group_name.toLowerCase());
     if (group_n < 0)
       return [];
     else
@@ -55,18 +55,18 @@ class Table {
   get group() { 
     let counter = window.__counter_value_from_server__;
     if (window.counterOverride && !isNaN(parseInt(window.counterOverride))) counter = parseInt(window.counterOverride);
-    return this.groups[counter % this.groups.length];
+    return this._groups[counter % this._groups.length];
   }
   get rows() {
     const rows = this._rows.map(r=>this._rowAsObject(r));
-    if (this.group===undefined) return rows;
-    else return rows.filter( r=>r[this.header.find(v=>v.toLowerCase()==this.group_name.toLowerCase())]==this.group );
+    if (this._group===undefined) return rows;
+    else return rows.filter( r=>r[this._header.find(v=>v.toLowerCase()==this._group_name.toLowerCase())]==this._group );
   }
-  setLabel(l) { this.label = l; return this; }
-  setGroup(g) { this.group = g; return this; }
-  setItem(i) { this.item = i; return this; }
-  setList(l) { this.group = l; return this; }
-  setLatin(l) { this.latin = l; return this; }
+  setLabel(l) { this._label = l; return this; }
+  setGroup(g) { this._group = g; return this; }
+  setItem(i) { this._item = i; return this; }
+  setList(l) { this._group = l; return this; }
+  setLatin(l) { this._latin = l; return this; } // TODO
   filter(f) { 
     const filteredTable = new Table(undefined); // Anonymous copy of this.table_name
     filteredTable.setContent(this._content);
@@ -112,8 +112,8 @@ export class Template {
       let item = this.fn(row);
       if (item instanceof Trial){
         item = item._asItem();
-        if (table.latin){
-          const latin_name = table.header.find(v=>v.toLowerCase()==table.latin.toLowerCase());
+        if (table._latin){
+          const latin_name = table._header.find(v=>v.toLowerCase()==table._latin.toLowerCase());
           if (latin_name) item[0] = [item[0],row[latin_name]];
         }
       }

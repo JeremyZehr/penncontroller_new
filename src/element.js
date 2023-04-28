@@ -70,20 +70,20 @@ export class Commands extends Function {
     this.test = {};
     this.testNot = {};
     for (let c in standardCommands.settings)
-      this._getAddCommandToSequence(standardCommands.settings[c],c);
+      this.#getAddCommandToSequence(standardCommands.settings[c],c);
     for (let c in standardCommands.actions)
-      this._getAddCommandToSequence(standardCommands.actions[c],c);
+      this.#getAddCommandToSequence(standardCommands.actions[c],c);
     for (let c in settings)
-      this._getAddCommandToSequence(settings[c],c);
+      this.#getAddCommandToSequence(settings[c],c);
     for (let c in actions)
-      this._getAddCommandToSequence(actions[c],c);
+      this.#getAddCommandToSequence(actions[c],c);
     for (let c in standardCommands.tests) {
-      this._getTest(standardCommands.tests[c],c);
-      this._getTest(standardCommands.tests[c],c,'not');
+      this.#getTest(standardCommands.tests[c],c);
+      this.#getTest(standardCommands.tests[c],c,'not');
     }
     for (let c in tests) {
-      this._getTest(tests[c],c);
-      this._getTest(tests[c],c,'not');
+      this.#getTest(tests[c],c);
+      this.#getTest(tests[c],c,'not');
     }
   }
   _getItemNumber() {
@@ -94,7 +94,7 @@ export class Commands extends Function {
     }
     return trial_order;
    }
-  _getAddCommandToSequence(command,name) {
+  #getAddCommandToSequence(command,name) {
     const skipEvalCommands = name.startsWith('$');
     name = name.replace(/^\$/,'');
     const f = function () {
@@ -115,7 +115,7 @@ export class Commands extends Function {
     this[name] = f;
     return f;
   }
-  _getTest(test,name,not) { 
+  #getTest(test,name,not) { 
     const skipEvalCommands = name.startsWith('$');
     name = name.replace(/^\$/,'');
     const that = this;

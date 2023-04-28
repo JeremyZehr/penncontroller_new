@@ -219,7 +219,7 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
       document.documentElement.removeEventListener("mouseup", this._handlers.mouseup);
     }
     if (!this._log || !this._events || this._events.length==0) return;
-    for (let i = 0; i < this._events; i++) this.log(...this._events[i]);
+    for (let e of this._events) this.log(...e);
   }
   this.value = async function () { return this._name; }
   this.actions = {
