@@ -86,6 +86,20 @@ export class Commands extends Function {
       this.#getTest(tests[c],c,'not');
     }
   }
+  _asProxy() {
+    const p = new Proxy(this,{
+      get(t,p){
+        if (typeof(p) == "string" && !Reflect.has(t,p)) 
+          throw Error(`Command get${t._element._type}("${t._element._name}").<strong>${p}</strong> does not exist`);
+        return Reflect.get(t,p);
+      },
+      set(t,p,v){
+        t[p] = v;
+        return t;
+      }
+    });
+    return p;
+  }
   _getItemNumber() {
     let trial_order;
     if (this._currentTrial) {
@@ -254,7 +268,7 @@ class Element {
   addResource(name,preloader) {
     let r = Resource.all[name];
     if (r === undefined || trials.current._elements.filter(e=>e!=this).map(e=>e._resources).flat().find(r=>r._name==name)){
-      console.log("element",this,"adding resource",name);
+      // console.log("element",this,"adding resource",name);
       r=new Resource(name,preloader); // New resource, or already used by another element from same trial
     }
     this._resources.push(r);
@@ -305,13 +319,15 @@ export const addElementType = (type, proto) => {
         else debug.error(`Could not find command default${type}.<strong>${v.name}</strong>`);
         return p;
       }, commands);
-    return commands;
+    // return commands;
+    return commands._asProxy();
   }
   elements['get'+type] = name => {
     const element = trials.current._elements.find( e=>e._type==type && e._name == name );
     if (element === undefined) 
       throw new Error("No element of type "+type+" named "+name+" found in current PennController trial");
-    return new Commands(element,p.actions,p.settings,p.test);
+    // return new Commands(element,p.actions,p.settings,p.test);
+    return (new Commands(element,p.actions,p.settings,p.test))._asProxy();
   }
   elements['default'+type] = new Proxy({},{get(t,p){
     if (p=="settings") return elements['default'+type];

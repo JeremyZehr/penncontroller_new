@@ -143,7 +143,7 @@ export const debug = {
     if (msg && msg.match(/expected expression, got ','/)) msg += " -- Tip: do you have two commas in a row?";
     if (url && linenumber) {
       url = url.split(' ');
-      msg = (msg||"") + ` <a href='${url[0]}'>line ${linenumber} ${url.length>0?url.join(' '):''}</a>`;
+      msg = (msg||"") + ` (<a href='${url[0]}'>line ${linenumber}; ${url.length>0?url.join(' '):''}</a>)`;
     }
     message(msg,errorsTab);
     showTab("Errors");

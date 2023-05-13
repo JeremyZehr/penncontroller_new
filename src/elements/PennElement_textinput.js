@@ -90,6 +90,7 @@ window.PennController._AddElementType('TextInput', function (PennEngine){
     $text: async function(t){ 
       if (t instanceof PennEngine.Commands){ await t.call(); t = await t._element._value; }
       else if (t instanceof Function) t = await t.call(this,this._nodes.main.value);
+      else if (!t && t!==0) t = !this._nodes.main.value;
       else t = this._nodes.main.value.match(t);
       return t;
     }

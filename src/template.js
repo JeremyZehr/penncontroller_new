@@ -1,3 +1,4 @@
+import { debug } from './debug'
 import { items } from './order'
 import { Trial, pushItemsInNewTrial } from './trial'
 
@@ -104,6 +105,11 @@ export class Template {
       table = tables.find(t=>t.name==this.table_name);
       if (table===undefined && window.CHUNKS_DICT[this.table_name])
         table = addTable(this.table_name, window.CHUNKS_DICT[this.table_name]);
+      else {
+        const errorMessage = "Couldn't find a table named "+this.table_name;
+        debug.error(errorMessage);
+        throw Error(errorMessage);
+      }
     }
     if (table===undefined) return its;
     // Prevent any newTrial command in this.fn from pushing items (items already contains Template at right position)

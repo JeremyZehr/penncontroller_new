@@ -15,7 +15,12 @@ window.PennController._AddElementType('Scale', function (PennEngine){
         input.value = (typeof(v)=="string"||typeof(v)=="number")?v:i;
         input.type = this._scaleType;
         if (input.value==this._value && (this._scaleType=="radio"||this._scaleType=="checkbox")) input.checked = true;
-        input.onchange = ()=>this.dispatchEvent("select", input.value, this._scaleType=='checkbox'?input.checked:undefined);
+        const callback = ()=>this.dispatchEvent("select", input.value, this._scaleType=='checkbox'?input.checked:undefined);
+        if (this._scaleType=="button") {
+          input.onclick = callback;
+          this.addEventListener("select", v=>v===input.value && input.classList.add("clicked"));
+        }
+        else input.onchange = callback;
         cell.append(input);
         cell.style.display = 'flex';
         const label = document.createElement("LABEL");
