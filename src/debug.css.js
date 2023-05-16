@@ -110,6 +110,9 @@ addStylesheet(`
   position: absolute;
   right: 0.5em;
 }
+.debugger .tab.Sequence li button + ul {
+  margin-left: -1.5em;
+}
 .debugger .tab.Sequence, .debugger .tab.Warnings, .debugger .tab.Errors, .debugger .tab.Logs .messages {
   display: flex;
   flex-direction: column;

@@ -11,8 +11,23 @@ import { sequence } from './order';
 import { debug } from './debug';
 
 export const hosts = [];
-const addHost = host => hosts.push(host);
-const getURLParameter = p => (new URLSearchParams(window.location.search)).get(p)
+const addHost = host => {
+  if (!host) return debug.warning("Attempted to add an empty host URL");
+  else if (typeof(host)!="string") return debug.error("Attempted to add a non-string as a host URL ("+host+")");
+  else if (host.toLowerCase().endsWith(".zip")) debug.warning("Did you mean to use PreloadZip instead of AddHost? (attempted to add '"+host+"' as a host URL)");
+  hosts.push(host)
+};
+const getURLParameter = p => {
+  let r = "";
+  if (!p) debug.warning("No parameter passed to GetURLParameter");
+  else if (typeof(p)!="string") debug.warning("Attempted to pass a non-string to GetURLParameter ("+p+")");
+  else r = (new URLSearchParams(window.location.search)).get(p);
+  if (r===null) {
+    debug.warning("Parameter "+p+" not found in URL");
+    r = "";
+  }
+  return r;
+}
 
 const PennController = newTrial;
 
@@ -63,13 +78,16 @@ for (let g in Global) Object.defineProperty(PennController,g,{get(){ return Glob
 PennController.ResetPrefix = prefix => {
   if (prefix && window[prefix] !== undefined) throw Error("Attempted to use a reserved prefix ("+prefix+")");
   let o = window;
-  if (prefix) o = (window[prefix]={});
+  if (prefix && typeof(prefix)=="string") o = (window[prefix]={});
   else
     for (let e in elements) Object.defineProperty(o,e,{get(){ return elements[e]; }});
   for (let g in Global) Object.defineProperty(o,g,{get(){ return Global[g]; }});
 }
 
 window.PennController = new Proxy(PennController, {
-  get(t,p){return PennController[p];},
+  get(t,p){
+    if (p in PennController) return PennController[p];
+    else throw Error("Could not find a PennController command named "+p);
+  },
   set(){throw Error("PennController is read-only")}
 });

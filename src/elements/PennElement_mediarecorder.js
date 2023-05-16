@@ -84,13 +84,18 @@ window.PennController._AddElementType("MediaRecorder", function(PennEngine) {
     await new Promise(r=>consent.onclick=r);
     init=true;
   }
-  initiateRecorderCommand.toString = ()=>`InitiateRecorder(${url},[message])`;
-  window.PennController.newTrial.InitiateRecorder = (url,message)=>{
+  initiateRecorderCommand.toString = ()=>`InitiateRecorder(${url},[message, consentText])`;
+  window.PennController.newTrial.InitiateRecorder = (url,message,consent)=>{
     if (typeof(url)!="string" || url.length<1) PennEngine.debug.warning("Invalid url passed to InitiateRecorder: "+url);
     else postURL = url;
     initiateMessage = message;
+    if (typeof(consent)=="string") texts.clickToGrant = consent;
     // InitiateRecorder returns a newTrial
-    return PennController.newTrial( initiateRecorderCommand ).noFooter().noHeader();
+    const t = PennController.newTrial( initiateRecorderCommand ).noFooter().noHeader();
+    // back compatibility
+    t.warning = m => { initiateMessage = m; return t; };
+    t.consent = m => { texts.clickToGrant = m; return t; };
+    return t;
   };
   
   let zipFilename = PennEngine.utils.uuid();

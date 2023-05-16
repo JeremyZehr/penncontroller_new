@@ -54,7 +54,12 @@ const refreshSequence = async () => {
       const ulli = document.createElement("LI");
       ulli.innerHTML = `<strong>${(e.type||'No Label').toString()}</strong> 
                         (${e.controller.toString()}, ${e.itemNumber}:${e.elementNumber}${
-                          e.options._pcibexTable ? '; '+e.options._pcibexTable.name+':'+e.options._pcibexTable.row : ''
+                          e.options._pcibexTable
+                            ? '; '+e.options._pcibexTable.name+':'+e.options._pcibexTable.row + 
+                                  (e.options._pcibexTable.group!==undefined ? "; group "+e.options._pcibexTable.group : '' )
+                            : ''
+                        }${
+                          e.group !== null ? "; !latin" : ''
                         })`;
       
       ul.append(ulli);
