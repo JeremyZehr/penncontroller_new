@@ -283,7 +283,26 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
       calibrated = score >= threshold;
     }
     // if (calibrated==false) webgazer.clearData();
-    const videoElement = document.querySelector("#"+webgazer.params.videoContainerId);
+    let videoElement = document.querySelector("#"+webgazer.params.videoContainerId);
+    if (!videoElement) { // supporting older versions of webgazer
+      webgazer.params.videoContainerId = 'webgazerPolyfillVideoContainer';
+      videoElement = document.createElement("div");
+      videoElement.id = webgazer.params.videoContainerId;
+      videoElement.style.position = 'absolute';
+      videoElement.style.top = 0;
+      videoElement.style.left = 0;
+      videoElement.style.pointerEvents = 'none';
+      document.body.append(videoElement);
+      [...document.querySelectorAll("#"+[
+        webgazer.params.videoElementCanvasId,
+        webgazer.params.videoElementId,
+        webgazer.params.faceOverlayId,
+        webgazer.params.faceFeedbackBoxId
+      ].join(",#"))].forEach(e=>{
+        videoElement.append(e);
+        e.style.pointerEvents = 'none';
+      });
+    }
     while (calibrated===false && attempts>0) {
       webgazer.clearData();
       attempts--;
@@ -383,6 +402,7 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     r();
   }
   this.end = async function(){ 
+    if (document.body.contains(calibrationDiv)) calibrationDiv.remove();
     showPredictionDot(false);
     webgazer.removeMouseEventListeners();
     currentETElement = undefined;
