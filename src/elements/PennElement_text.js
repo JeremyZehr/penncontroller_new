@@ -18,12 +18,12 @@ window.PennController._AddElementType('Text', function (PennEngine){
     if (!this._log) return;
     if (!(this._prints instanceof Array) || this._prints.length==0) this.log("Print", "", null, "Never printed");
     for (let i = 0; i < this._prints.length; i++)
-      this.log("Print",this._prints[i].text,this._prints[i].date,encodeURIComponent(this._prints[i].args.join(' ')));
+      this.log("Print",this._prints[i].text,this._prints[i].date,this._prints[i].args.join(';'));
   }
   this.value = async function () { return this._text; }
   this.actions = {
-    text: function (r,text) { 
-      this._text = text.replace(/(^\s+|\s+$)/g,m=>[...Array(m.length)].map(v=>"&nbsp;").join(''));;
+    text: function (r,text) {
+      this._text = String(text).replace(/(^\s+|\s+$)/g,m=>[...Array(m.length)].map(v=>"&nbsp;").join(''));;
       this._nodes.main.innerHTML = this._text;
       r();
     },

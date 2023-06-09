@@ -11,18 +11,18 @@ window.PennController._AddElementType('MouseTracker', function (PennEngine){
     this._callbacks = [];
     this._initialW = window.innerWidth;
     this._initialH = window.innerHeight
-    this.addEventListener("action", (what,x,y)=>this._callbacks.forEach(async c=>{
+    this.addEventListener("action", (what,x,y)=>!this._disabled && this._callbacks.forEach(async c=>{
       if (!(c instanceof Array)) return;
       for (let i=0; i<c.length; i++)
         if (c[i] instanceof Function) await c[i].call(PennEngine.trials.current,what,x,y);
     }));
     document.documentElement.addEventListener("mousemove", e=>{
-      if (!this._tracking) return;
+      if (this._disabled || !this._tracking) return;
       this._coordinates.push([e.clientX,e.clientY,Date.now()]);
       this.dispatchEvent("action", "move", e.clientX, e.clientY);
     });
     document.documentElement.addEventListener("click", e=>{
-      if (!this._tracking) return;
+      if (this._disabled || !this._tracking) return;
       this._clicks.push([e.clientX,e.clientY,Date.now()]);
       this.dispatchEvent("action", "click", e.clientX, e.clientY);
     });
@@ -59,7 +59,7 @@ window.PennController._AddElementType('MouseTracker', function (PennEngine){
     $wait: async function(r,t){
       let waited = false;
       this.addEventListener("action", PennEngine.utils.parallel(async what=>{
-        if (waited || (t instanceof Function && !(await t.call()))) return;
+        if (this._disabled || waited || (t instanceof Function && !(await t.call()))) return;
         if (typeof(t)=="string" && t.length>0 && t!=what) return;
         waited = true;
         this.dispatchEvent("waited");

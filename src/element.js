@@ -62,7 +62,8 @@ export class Commands extends Function {
     super('throw Error("Instances of PennController Commands should not be invoked directly");');
     Object.defineProperty(this,'length',{writable: true});
     Object.defineProperty(this,'name',{writable: true});
-    this._element = element;
+    if (element instanceof Element) this._elementRef = element;
+    else if (element instanceof Array && element.length==3) this._elementRetrieval = element;
     this._sequence = [];
     this._currentTrial = null;
     this._node = null;
@@ -86,6 +87,21 @@ export class Commands extends Function {
       this.#getTest(tests[c],c,'not');
     }
   }
+  get _element() { 
+    if (this._elementRef instanceof Element) return this._elementRef;
+    if (this._elementRetrieval instanceof Array && this._elementRetrieval.length == 3){
+      if (typeof(this._elementRetrieval[0])!="string" || typeof(this._elementRetrieval[2])!="string") return;
+      const trial = this._elementRetrieval[1] || trials.current;
+      if (trial && trial._elements) {
+        const element = trial._elements.find( e=>e._type==this._elementRetrieval[2] && e._name == this._elementRetrieval[0] );
+        if (element) {
+          this._elementRef = element;
+          return element;
+        }
+      }
+    }
+  }
+  set _element(v) { /* void */ }
   _asProxy() {
     const p = new Proxy(this,{
       get(t,p){
@@ -112,6 +128,9 @@ export class Commands extends Function {
     const skipEvalCommands = name.startsWith('$');
     name = name.replace(/^\$/,'');
     const f = function () {
+      if (name=="log" && arguments.length==2)
+        debug.warning(`Called .log(${arguments[0]},${arguments[1]}) on get${this._element._type}(${this._element._name}); 
+                        Did you mean to call it on newTrial() instead?`);
       firstPassOnArguments.call(arguments,this._element);
       // for (let i = 0; i < arguments.length; i++)
       //   if (arguments[i] instanceof Self)  arguments[i] = arguments[i].call(this._element);
@@ -204,10 +223,22 @@ export class Commands extends Function {
   toString(){ return `get${this._element._type}("${this._element._name}")`; }
 }
 
+// Every element's initial properties need to be backed up so they can be reset if the trial is re-run
+const backups = new Map();
+// Rigid properties are element properties that should never be modified during runtime
+const IS_RIGID_PROPERTY = p=>Object({
+  constructor,_type:1,_proto:1,_resources:1,value:1,_commands:1,_init:1,_end:1,
+  addResource:1,dispatchEvent:1,addEventListener:1,_name:1
+})[p]==1;
+const backup = function(){
+  const bu = {};  // Save the state before the trial to restore it at the end
+  for (let p of Object.getOwnPropertyNames(this.__proto__))
+    if (!IS_RIGID_PROPERTY(p)) bu[p] = this[p];
+  for (let p of Object.getOwnPropertyNames(this))
+    if (!IS_RIGID_PROPERTY(p)) bu[p] = this[p];
+  backups.set(this, bu);
+}
 
-const IS_RIGID_PROPERTY = p=>
-  ["value","_commands","_resources","__backup__","dispatchEvent","addEventListener"]
-  .indexOf(p);
 class Element {
   constructor(type,proto, ...args){
     this._type = type;
@@ -215,6 +246,8 @@ class Element {
     this._resources = [];
     this._eventListeners = {};
     this._initialized = false;
+    if (!(proto.immediate instanceof Function)) debug.error("Elements of type "+type+" should have an 'immediate' method");
+    proto.immediate.apply(this, args);
   }
   get value() { return (this._proto.value||(()=>undefined)).call(this); }
   set value(v) { /* void */ }
@@ -223,31 +256,15 @@ class Element {
   // private
   async _init(){
     if (this._initialized) return;
-    const backup = {};  // Save the state before the trial to restore it at the end
-    for (let p of Object.getOwnPropertyNames(this.__proto__)) {
-      if (IS_RIGID_PROPERTY(p)) continue;
-      backup[p] = this[p];
-    }
-    for (let p of Object.getOwnPropertyNames(this)) {
-      if (IS_RIGID_PROPERTY(p)) continue;
-      backup[p] = this[p];;
-    }
-    this.__backup__ = backup;
     await new Promise(r=>this._proto.uponCreation.call(this,r));
     this._initialized = true;
   }
   async _end() {
     await this.dispatchEvent('_end');
     const r = await this._proto.end.call(this);
-    const backup = this.__backup__;  // Restore the pre-trial state for future reruns of this trial
-    for (let p of Object.getOwnPropertyNames(this.__proto__)) {
-      if (IS_RIGID_PROPERTY(p)) continue;
-      this[p] = undefined;
-    }
-    for (let p of Object.getOwnPropertyNames(this)) {
-      if (IS_RIGID_PROPERTY(p)) continue;
-      this[p] = undefined;
-    }
+    const backup = backups.get(this);  // Restore the pre-trial state for future reruns of this trial
+    for (let p of Object.getOwnPropertyNames(this))
+      if (!IS_RIGID_PROPERTY(p)) delete this[p];
     for (let p in backup) this[p] = backup[p];
     this._initialized = false;
     this._eventListeners = {};  // Object references persist in backup, so we need a new, empty object here
@@ -266,10 +283,16 @@ class Element {
       await els[e].call(this, ...args);
   }
   addResource(name,preloader) {
-    let r = Resource.all[name];
-    if (r === undefined || trials.current._elements.filter(e=>e!=this).map(e=>e._resources).flat().find(r=>r._name==name)){
-      // console.log("element",this,"adding resource",name);
-      r=new Resource(name,preloader); // New resource, or already used by another element from same trial
+    let r = (Resource.all[name] || [])[0];
+    if (r === undefined) r = new Resource(name,preloader); // Need new resource
+    else {
+      const duplicates = trials.current._elements.filter(e=>e!=this).map(e=>e._resources).flat().filter(r=>r._name==name);
+      if (duplicates.length>0){ // The current trial already uses the resource
+        // Use an existing copy of the resource if there are enough already
+        if (Resource.all[name].length>duplicates.length) r = Resource.all[name][duplicates.length];
+        // Create a new copy of the resource if there aren't enough yet
+        else r = new Resource(name,preloader);
+      }
     }
     this._resources.push(r);
     return r._promise;
@@ -300,12 +323,15 @@ export const addElementType = (type, proto) => {
   const p = new proto(PennEngine);
   elements['new'+type] = (...args) => {
     const element = new Element(type, p, ...args);
-    p.immediate.call(element, ...args);
+    // In case the immediate method didn't explicitly name the element, choose a name automatically
     element._name = element._name || (args[0] && typeof(args[0])=="string" ? args[0] : type)
+    // Now make sure the name is unique
     const name = element._name;
     let i = 1;
     while (trials.current._elements.find(e=>e._type==type && e.name==element._name)) element._name = name+'-'+parseInt(i=i+1);
     if (element._name != name) debug.warning(`An element named ${name} already exists--naming this one ${element._name}`);
+    // The element has its final name, now back it up
+    backup.call(element);
     trials.current._properElements.push(element);
     const commands = new Commands(element,p.actions,p.settings,p.test);
     commands._sequence.push(()=>element._init());
@@ -324,10 +350,10 @@ export const addElementType = (type, proto) => {
   }
   elements['get'+type] = name => {
     const element = trials.current._elements.find( e=>e._type==type && e._name == name );
-    if (element === undefined) 
-      throw new Error("No element of type "+type+" named "+name+" found in current PennController trial");
+    if (element === undefined)
+      debug.warning(`Found get${type}('${name}') before new${type}('${name}') could be found; make sure the element is created before the first get.`);
     // return new Commands(element,p.actions,p.settings,p.test);
-    return (new Commands(element,p.actions,p.settings,p.test))._asProxy();
+    return (new Commands(element||[name,trials.current,type],p.actions,p.settings,p.test))._asProxy();
   }
   elements['default'+type] = new Proxy({},{get(t,p){
     if (p=="settings") return elements['default'+type];

@@ -87,11 +87,20 @@ export const gotRunningOrder = new Promise(r=> {
   const modifyRunningOrders = [];
   Object.defineProperty(window,'modifyRunningOrder',{ 
     get(){ return ro =>{
-      // main.js has been executed, prevent participants from messing with debugger
+      // main.js has been executed, prevent participants from messing with debugger and accessing CHUNKS_DICT
       if (!debug.on){
         debug.show = ()=>null; 
         debug.switch = ()=>null;
+        // Since htmlCodeToDOM accesses window.CHUNKS_DICT, we'll just temporarily set it during each call
+        const local_dict = {...window.CHUNKS_DICT};
         window.CHUNKS_DICT = {};
+        const old_htmlCodeToDOM = window.htmlCodeToDOM;
+        window.htmlCodeToDOM = function (...args) {
+          window.CHUNKS_DICT = {...local_dict};
+          const r = old_htmlCodeToDOM.apply(this,args);
+          window.CHUNKS_DICT = {};
+          return r;
+        }
       }
       modifyRunningOrders.forEach( f=>ro=f(ro) );
       order.ro = ro;

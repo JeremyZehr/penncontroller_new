@@ -1,22 +1,24 @@
 export const zip = require("@zip.js/zip.js");
 import { debug } from './debug';
 
-const resources = [], extractedFiles = {};
+const resources = [], extractedFiles = {}, zipPromises = [];
 
 export const scanZipForResource = resource => {
   if (resource._status=='loaded') return;
   resources.push(resource);
   if (extractedFiles[resource._name])
-    extractedFiles[resource._name].forEach( blobURL => resource._preloader(blobURL).then(r=>resource._r(r)) );
+    extractedFiles[resource._name].forEach( blobURL => resource.preloader(blobURL) );
+  return zipPromises;
 }
 export const preloadZip = async url => {
   if (!url || typeof(url)!="string") return debug.warning("Invalid URL passed to PreloadZip ("+url+")");
-  let response;
+  let response, solveZipPromise;
+  zipPromises.push(new Promise(r=>solveZipPromise=r));
   debug.log("Fetching "+url+"...");
   try {
     response = await fetch(url);
     if (!response.ok) return debug.warning("Download of "+url+" failed: "+response.statusText);
-    debug.log("Download of "+url+" complete");
+    debug.log("Download of "+url+" complete; Now extracting it...");
   } catch (e) {
     let msg = "Could not download "+url+": "+e;
     if (msg.match(/NetworkError/)) msg += " Did you set up the CORS permissions correctly?";
@@ -36,7 +38,7 @@ export const preloadZip = async url => {
         const entryURL = URL.createObjectURL(entryBlob);
         extractedFiles[filename] = [...(extractedFiles[filename]||[]),entryURL];
         resources.forEach( resource => {
-          if (resource._name==filename && resource._status=='unloaded') resource._preloader(entryURL).then( r=>resource._r(r) );
+          if (resource._name==filename && resource._status=='unloaded') resource.preloader(entryURL);
         });
     }
     await zipReader.close();
@@ -45,4 +47,5 @@ export const preloadZip = async url => {
   catch (e) {
     debug.error("There was a problem trying to extract "+url+": "+e);
   }
+  solveZipPromise();
 }

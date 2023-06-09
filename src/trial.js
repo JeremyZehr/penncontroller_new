@@ -83,7 +83,13 @@ export class Trial {
     trials.running = null;
     if (this._node instanceof Node) this._node.remove();
     this._logs = this._logs.sort((a,b)=>a[4][1]-b[4][1]);
-    this._finishedCallback(this._logs); 
+    for (let log of this._logs) // pairs of column name + value
+      for (let i in log) log[i] = [
+        String(log[i][0]).replace(/,/g,'%2C').replace(/[\n\r]/g,'%0A'),
+        String(log[i][1]).replace(/,/g,'%2C').replace(/[\n\r]/g,'%0A')
+      ];
+      // for (let i in log) log[i] = [encodeURIComponent(log[i][0]),encodeURIComponent(log[i][1])];
+    this._finishedCallback(this._logs);
     return this;
   }
   _asItem() { return [this._label||'undefined', "PennController", this._trial]; }
@@ -124,7 +130,6 @@ const printPreloading = async (trial,resources,delay=PRELOAD_TIMEOUT) => {
   if (s>=1) preloadNode.innerText += ` This could take up to ${tm>0?tm+'min':''}${ts==0?'':ts+'s'}`;
   trial._node.append( preloadNode );
   const timed_out = {};
-  let nw = Date.now();
   const preload = await Promise.race([
     new Promise(r=>setTimeout(()=>r(timed_out),delay)),
     Promise.all(resources.map(r=>r._promise))

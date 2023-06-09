@@ -19,17 +19,17 @@ class Table {
   }
   setAndParseContent(content){
     this._content = content;
-    if (!this._content || typeof(this._content)!="string") throw Error(`Table ${this.name} has invalid content (${this._content})`);
+    if (!this._content || typeof(this._content)!="string") return debug.error(`Table ${this.name} has invalid content (${this._content})`);
     this._header = [];
     this._regex = null;
     const lines = this._content.split(/[\n\r]+/);
-    if (lines.length<2) throw Error(`Table ${this.name} has too few rows (${lines.length}, should be >=2)`);
     // Remove all extra empty lines
     while (lines[lines.length-1].match(/^\W*$/)) lines.pop();
+    if (lines.length<2) return debug.error(`Table ${this.name} has too few rows (${lines.length}, should be >=2)`);
     // Find the delimiter that outputs the max number of columns
     let chosen_delimiter = '';
     DELIMITERS.forEach(d=>{
-      const rgx = new RegExp(`(^|${d})("([^"]|\\")*"|'([^']|\\')*'|[^${d}]*)`,'g');
+      const rgx = new RegExp(`(^|${d})("([^"]|\\")*?"|'([^']|\\')*?'|[^${d}]*)`,'g');
       const cols = lines[0].match(rgx), firstline = lines[1].match(rgx);
       // Must be consistent (same # of cells for header & 1st row) and exhaustive (regexp captures all chars)
       if (cols && firstline && cols.length == firstline.length && cols.length > this._header.length && cols.join('').length==lines[0].length){
@@ -139,29 +139,40 @@ export class Template {
     // Set the content of reference if not set yet (eg. just a string was passed or GetTable was used)
     if (!tables[this.table_name]) tables[this.table_name] = window.CHUNKS_DICT[this.table_name];
     // If the content is still empty (no entry in CHUNKS_DICT) throw an error
-    if (!tables[this.table_name]) throw Error("No table named "+this.table_name+" found in the project");
-    // Initiate the table when calling Template
-    table.setAndParseContent(tables[this.table_name]);
-    // Prevent any newTrial command in this.fn from pushing items (items already contains Template at right position)
-    pushItemsInNewTrial(false);
-    const rows = table.rows;
-    for (let n in rows) {
-      let row = rows[n], item = this.fn(row);
-      if (item instanceof Trial){
-        item = item._asItem();
-        // Add the latin-square tag to the label array if applicable
-        if (table._latin){
-          const latin_name = table._header.find(v=>v.toLowerCase()==table._latin.toLowerCase());
-          if (latin_name) item[0] = [item[0],row[latin_name]];
+    if (!tables[this.table_name]) debug.error("No table named "+this.table_name+" found in the project");
+    else {
+      // Initiate the table when calling Template
+      table.setAndParseContent(tables[this.table_name]);
+      // Prevent any newTrial command in this.fn from pushing items (items already contains Template at right position)
+      pushItemsInNewTrial(false);
+      const rows = table.rows;
+      const warningsThrown = {}; // Reference warnings to prevent as many duplicates as rows
+      for (let n in rows) {
+        // use a proxy to throw a warning if accessing a column that does not exist
+        let row = new Proxy(rows[n], { get(t,v){
+          if (!(v in t) && !(v in warningsThrown)) {
+            debug.warning(`Attempted to access column '${v}' in ${table.name} but no column of that name was found.`);
+            warningsThrown[v] = 1;
+          }
+          return t[v];
+        } });;
+        let item = this.fn(row);
+        if (item instanceof Trial){
+          item = item._asItem();
+          // Add the latin-square tag to the label array if applicable
+          if (table._latin){
+            const latin_name = table._header.find(v=>v.toLowerCase()==table._latin.toLowerCase());
+            if (latin_name) item[0] = [item[0],row[latin_name]];
+          }
         }
+        // Add template info to every element's options, to be used in the debugger
+        const group = table.group;
+        for (let i=2; i<item.length; i+=2)
+          item[i]._pcibexTable = {name: this.table_name, row: table._rowNumber.get(rows[n]), group: group};
+        its.push(item);
       }
-      // Add template info to every element's options, to be used in the debugger
-      const group = table.group;
-      for (let i=2; i<item.length; i+=2)
-        item[i]._pcibexTable = {name: this.table_name, row: table._rowNumber.get(row), group: group};
-      its.push(item);
+      pushItemsInNewTrial(true);
     }
-    pushItemsInNewTrial(true);
     // Store the items for future reference; do not re-run this.fn next time _asItems is called
     this._items = its;
     return its;
@@ -174,4 +185,10 @@ export const template = (table_ref_or_name, fn) => {
     table_ref_or_name = undefined;
   }
   items.push(new Template(table_ref_or_name,fn));
+  return new Proxy({},{get(t,v){ 
+    let msg = `Tried to access ${v} on Template()`;
+    if (v=="log") msg += ". Did you mean to call it on newTrial() instead?";
+    debug.warning(msg);
+    return ()=>null;
+  }});
 }

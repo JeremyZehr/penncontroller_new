@@ -42,6 +42,7 @@ window.PennController._AddElementType('DropDown', function (PennEngine){
     },
     $callback: function(r,...c) {
       this.addEventListener("select", PennEngine.utils.parallel(async ()=>{
+        if (this._disabled) return;
         for (let i = 0; i < c.length; i++)
           if (c[i] instanceof Function) await c[i].call(PennEngine.trials.current,this._nodes.main.selectedOptions[0]);
       }));
@@ -87,6 +88,7 @@ window.PennController._AddElementType('DropDown', function (PennEngine){
     $wait: function(r,t) {
       let waited = false;
       this.addEventListener("select", PennEngine.utils.parallel(async() => {
+        if (this._disabled) return;
         if (waited || (t instanceof Function && !(await t.call()))) return;
          waited=true;
          this.dispatchEvent("waited");

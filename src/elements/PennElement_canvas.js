@@ -16,8 +16,9 @@ window.PennController._AddElementType('Canvas', function (PennEngine){
   this.end = async function(){ 
     if (!this._log) return;
     if (!this._prints || this._prints.length==0) this.log("Print", "", null, "Never printed");
+    const w = this._nodes.main.style.width, h = this._nodes.main.style.height;
     for (let i=0; i<this._prints.length; i++)
-      this.log("Print",this._prints[i].text,this._prints[i].date,encodeURIComponent(this._prints[i].args.join(' ')));
+      this.log("Print",w+";"+h,this._prints[i].date,this._prints[i].args.join(' '));
   }
   this.value = async function () { return this._name; }
   this.settings = {

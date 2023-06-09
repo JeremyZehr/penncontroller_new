@@ -11,7 +11,7 @@ window.PennController._AddElementType('Key', function (PennEngine){
     this._keyEvents = [];
     const trial = PennEngine.trials.current;
     this._handler = e=>{
-      if (e.repeat) return;
+      if (this._disabled || e.repeat) return;
       if (trial!=PennEngine.trials.current || PennEngine.utils.keyMatch(e,this._initialKeys)<0 || this._disabled) return;
       this._keyEvents.push({key:(e.ctrlKey||e.altKey||e.shiftKey?PennEngine.utils.fullKey(e):e.key),date:Date.now(),e:e});
       this.dispatchEvent("keydown", e);
@@ -37,6 +37,7 @@ window.PennController._AddElementType('Key', function (PennEngine){
     print: function(r){ PennEngine.debug.warning("Key elements cannot be printed"); r(); },
     $callback: function(r,...rest) {
       this.addEventListener("keydown", PennEngine.utils.parallel(async e=>{
+        if (this._disabled) return;
         for (let i = 0; i < rest.length; i++)
           if (rest[i] instanceof Function) await rest[i].call(PennEngine.trials.current,e);
       }));
@@ -47,7 +48,7 @@ window.PennController._AddElementType('Key', function (PennEngine){
       if (f=="first" && this._keyEvents.length>0) return r();
       let waited = false;
       this.addEventListener("keydown", PennEngine.utils.parallel(async e=>{
-        if (waited || (t instanceof Function && !(await t.call()))) return;
+        if (this._disabled || waited || (t instanceof Function && !(await t.call()))) return;
         waited = true;
         this._keyEvents[this._keyEvents.length-1].waited = true;
         this.dispatchEvent("waited");

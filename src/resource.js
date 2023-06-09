@@ -8,22 +8,40 @@ const resources = {};
 
 export class Resource {
   constructor(name,preloader){
-    resources[name] = this;
+    resources[name] = [...resources[name]||[],this];
     this._name = name;
     this._status = 'unloaded';
-    this._promise = new Promise(r=>this._r = r);
+    // Create a promise that can be resolved by calling this._r
+    this._promise = new Promise(r=>this._r = r); // resolving the promise marks the resource as loaded
     this._promise.then(()=>{this._status='loaded';debug.log("Finished preloading "+name);});
+    // this._preloader needs to be an async function that returns the object resolved by this._promise
     this._preloader = (preloader instanceof Function ? preloader : async ()=>null );
+    // keep track of attempts to preload (array of this._preloader's)
+    this._preloadAttempts = [];
+    this._checkForErrors = false; // check for errors once all attempts have started
+  }
+  // wrapper to call this._preloader and keep track of the attempt
+  preloader(uri) {
+    if (this._status=="loaded") return; // no need to call this._preloader if the resource has already loaded
+    this._preloadAttempts.push(this._preloader(uri).then( r=>this._r(r) ));
   }
   preload(name) {
     if (name===undefined) name = this._name;
     if (this._status=='unloaded'){
       debug.log("Starting to preload "+name);
-      this._preloader(name).then( r=>this._r(r) );
+      this.preloader(name);
+      let zipFilesExtracted = new Promise(r=>r());
       if (!name.match(/^http/i)) {
-        hosts.filter(h=>h.match(/^http/i)).forEach(h=>this._preloader(h+name).then(r=>this._r(r)));
-        scanZipForResource(this);
+        for (let h of hosts)
+          if (h.match(/^http/i)) this.preloader(h+name);
+        zipFilesExtracted = Promise.allSettled(scanZipForResource(this));
       }
+      Promise.allSettled(this._preloadAttempts); // embed promises in an environment that won't throw errors
+      zipFilesExtracted.then(async ()=>{
+        const rs = await Promise.allSettled(this._preloadAttempts);
+        if (rs.find(r=>r.status=="fulfilled")) return;
+        debug.warning(`No valid resource named ${this._name} could be found at any URL or in any zip file.`);
+      });
     }
     return this._promise;
   }
@@ -41,7 +59,7 @@ const runPreloadCycle = ()=>{
     Promise.race([r._promise,new Promise(r=>setTimeout(r,ROLL_TIMEOUT))]).then(()=>{
       if (r._status!='loaded') {
         debug.warning("Resource "+r._name+" has not finished preloading after "+ROLL_TIMEOUT+"ms");
-        console.log("Resource",r,"has not finished preloading after "+ROLL_TIMEOUT+"ms")
+        console.log("Resource",r,"has not finished preloading after "+ROLL_TIMEOUT+"ms");
       }
       const idx = resourcesPreloading.indexOf(r);
       if (idx>=0) resourcesPreloading.splice(idx,1);

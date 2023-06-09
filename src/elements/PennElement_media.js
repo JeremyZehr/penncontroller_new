@@ -32,7 +32,7 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
       target_ratio = target_ratio||RATIO_PRELOADED;
     else
       target_ratio = undefined;
-    this.addResource(file, async (uri) => {
+    this.addResource(file, async uri => { // new Promise((resolve,reject) => {
       const object = document.createElement(mediaType=="Audio"?"AUDIO":"VIDEO");
       object.muted = true;
       object.preload = 'auto';
@@ -46,17 +46,19 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
         const difference = object.duration-object.currentTime;
         let ratio = 0;
         if (object.buffered.length && object.seekable.length) ratio = object.buffered.end(0)/object.seekable.end(0);
-        // console.log("checkLoaded",object.src,ratio);
         if (difference<TIME_DIFFERENCE_PRELOADED || ratio >= target_ratio) return r(object);        
         else window.requestAnimationFrame(()=>checkLoaded(r));
       };
       object.src = uri;
-      await new Promise(r=>object.addEventListener("canplaythrough", ()=>checkLoaded(r)));
+      const p = await new Promise(r=>{
+        object.addEventListener('error', e=>r(e.target.error));
+        object.addEventListener("canplaythrough", ()=>checkLoaded(r));
+      });
+      if (p instanceof MediaError) throw Error("Invalid media at "+uri);
       return object;
     })
     .then( o => {
       o.currentTime = 0;
-      console.log("finished loading", o, this._nodes);
       o.controls = (mediaType=="Audio"?true:false);
       o.style["max-width"] = "100%";
       o.style["max-height"] = "100%";
@@ -119,8 +121,12 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
   // This is executed at the end of a trial
   this.end = function(){
     if (this._media instanceof Node){
+      const v = this._media.volume;
+      this._media.volume = 0;
       this._media.pause();
-      this._media.currentTime = 0;
+      if (this._media.currentTime !== 0 && (this._media.currentTime > 0 && this._media.currentTime < this._media.duration))
+        this._media.currentTime = 0;
+      this._media.volume = v;
     }
     if (this._disableLayer instanceof Node) {
       this._disableLayer.remove();
@@ -215,6 +221,10 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
     log: function(r,...whats){
       if (whats.length==0) this._log = true;
       else this._log = whats;
+      r();
+    },
+    once: function(r){
+      this.addEventListener('ended', PennEngine.utils.parallel(e=>this._showDisabledLayer()));
       r();
     }
   };

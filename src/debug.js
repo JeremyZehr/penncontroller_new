@@ -140,7 +140,7 @@ export const debug = {
   error: (msg,url,linenumber) => {
     if (errorsTab.innerHTML=="<em>No errors detected</em>") errorsTab.innerHTML = "";
     tabs.Errors.title.style.color = 'red';
-    if (msg && msg.match(/expected expression, got ','/)) msg += " -- Tip: do you have two commas in a row?";
+    if (msg && msg.match(/SyntaxError.+','/)) msg += " -- Tip: do you have two commas in a row?";
     if (url && linenumber) {
       url = url.split(' ');
       msg = (msg||"") + ` (<a href='${url[0]}'>line ${linenumber}; ${url.length>0?url.join(' '):''}</a>)`;

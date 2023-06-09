@@ -12,7 +12,8 @@ let SessionID;
 
 let FixationTime = 3000;
 window.PennController.newTrial.SetETFixationTime = t => FixationTime=isNaN(t)||t<200?FixationTime:t;
-let LeewayPx = 50;
+// let LeewayPx = 50;
+let LeewayPx = Math.round(Math.min(window.innerWidth,window.innerHeight)/4);
 window.PennController.newTrial.SetETLeeway = px => LeewayPx=isNaN(px)||px<1?LeewayPx:px;
 let trackerURL;
 window.PennController.newTrial.EyeTrackerURL = url => trackerURL=url;
@@ -77,13 +78,19 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
   let moveEvent, clickEvent;
   let detectedFace = false, storePoints = false;
 
+  const showPredictionDot = (show=true) => {
+    const predictionDot = document.querySelector("#webgazerGazeDot");
+    if (!predictionDot) return;
+    predictionDot.style.opacity = Number(show);
+    predictionDot.style.pointerEvents = 'none';
+  }
   const showFaceDetectionMessage = () => {
     [...calibrationDiv.children].forEach(c=>c.remove());
     const message = document.createElement("P");
     message.innerText = faceDetectionMessage;
     Object.entries({position:'absolute',top:'50vh',left:'50vw',transform:'translate(-50%,-50%)'}).forEach( s => message.style[s[0]]=s[1] );
     calibrationDiv.append(message);
-  }  
+  }
   const setTracker = async function(){
     if (init) return;
     console.log("start setTracker");
@@ -99,7 +106,7 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     setEvents();  // The next addEventListener(mousemove/click) will be webgazer's, as triggered by begin below
     webgazer.begin();
     webgazer.removeMouseEventListeners();
-    await showTracker(false);
+    showPredictionDot(false);
     console.log("end setTracker");
     init = true;
     (function face(){detectedFace=webgazer.getTracker().predictionReady; if (!detectedFace) window.requestAnimationFrame(face);})();
@@ -130,13 +137,7 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
       oldAEL.apply(document, args);
     };
   }
-  const showTracker = async show => { // Show/Hide the video and the tracking point
-    show = !(show===false);
-    await webgazer.showPredictionPoints(show);
-    await webgazer.showVideo(show);
-    // document.querySelector("#webgazerGazeDot").style['pointer-events'] = 'none';
-  }
-  const printDot = (x,y,tx,ty,color='green') => {
+  const printDot = (x,y,tx,ty,color='green',showDotFrame=false) => {
     const dot = document.createElement("div");
     Object.entries({
       background:color,'border-radius':'50%',border:'solid 0.25em black',cursor:'pointer',
@@ -144,6 +145,18 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
       position:'absolute',top:y,left:x,width:'3em',height:'3em',transform: `translate(${tx},${ty})`
     }).forEach( s => dot.style[s[0]]=s[1] );
     calibrationDiv.append(dot);
+    if (showDotFrame) {
+      const bcr = dot.getBoundingClientRect();
+      const frame = document.createElement("div");
+      frame.style.position = 'relative';
+      frame.style.left = 0-LeewayPx;
+      frame.style.top = 0-LeewayPx;
+      frame.style.width = bcr.width+LeewayPx*2;
+      frame.style.height = bcr.height+LeewayPx*2;
+      frame.style.border = "dotted 1px gray";
+      frame.style.pointerEvents = 'none';
+      dot.append(frame);
+    }
     return dot;
   }
   const fixateDot = async (dot,overwriteFixate) => {
@@ -174,18 +187,22 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     }
     webgazer.removeMouseEventListeners();
   }
-  const scoreFixation = async () => {
+  const scoreFixation = async (showDotFrame=false,short=false) => {
     console.log("start scoreFixation");
     await waitDuration(750); // Wait 750ms
     [...calibrationDiv.children].forEach(n=>n.remove());
     const positions = [{x:'50vw',y:'50vh'},{x:'25vw',y:'25vh'},{x:'75vw',y:'25vh'},{x:'75vw',y:'75vh'},{x:'25vw',y:'75vh'}];
+    if (short) {
+      window.fisherYates(positions);
+      positions.splice(1,10);
+    }
     // const positions = [{x:'25vw',y:'25vh'},{x:'75vw',y:'25vh'},{x:'25vw',y:'75vh'},{x:'75vw',y:'75vh'}];
     // window.fisherYates(positions);
     // positions.unshift({x:'50vw',y:'50vh'});
     const scores = Array(positions.length);
     for (let n=0; n<positions.length; n++) {
       const p = positions[n];
-      const dot = printDot(p.x,p.y,"-50%","-50%","blue");
+      const dot = printDot(p.x,p.y,"-50%","-50%","blue",showDotFrame);
       const bcr = dot.getBoundingClientRect();
       // await waitDuration(200);
       await new Promise(r=>dot.addEventListener("click",r));
@@ -193,16 +210,21 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
       dot.style.borderColor = 'gray';
       dot.style.transition = `background-color ${ft}ms linear`;
       dot.style.backgroundColor = 'transparent';
+      [past50Array.x,past50Array.y,past50Array.n] = [Array(50),Array(50),0];
       storePoints = true;
       // await fixateDot(dot,Math.max(500,FixationTime/2));
       await waitDuration(ft);
       storePoints = false;
       console.log("past50Array",n,past50Array);
-      const len = Math.min(past50Array.x.length,past50Array.y.length);
-      const localScores = Array(len);
-      for (let i=0; i<len; i++) {
+      let len = 0;
+      const localScores = Array(50);
+      for (let i=0; i<50; i++) {
         const [x, y] = [past50Array.x[i], past50Array.y[i]];
-        localScores[i] = bcr.x-LeewayPx<=x && x<=bcr.x+bcr.width+LeewayPx && bcr.y-LeewayPx<=y && y<=bcr.y+bcr.height+LeewayPx;
+        if (x===undefined || y===undefined) localScores[i] = 0;
+        else {
+          localScores[i] = bcr.x-LeewayPx<=x && x<=bcr.x+bcr.width+LeewayPx && bcr.y-LeewayPx<=y && y<=bcr.y+bcr.height+LeewayPx;
+          len++;
+        }
       }
       scores[n] = localScores.reduce((a,b)=>a+b,0) / len;
       dot.remove();
@@ -221,6 +243,7 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     //   const x = past50Array[0][i], y = past50Array[1][i];
     //   scores[i] = bcr.x-LeewayPx<=x && x<=bcr.x+bcr.width+LeewayPx && bcr.y-LeewayPx<=y && y<=bcr.y+bcr.height+LeewayPx;
     // }
+    console.log("scores", scores);
     const score = 100*scores.reduce((a,b)=>a+b,0)/scores.length;
     console.log(`Percentage of gaze estimates falling within a ${LeewayPx}px leeway around the dot: ${score}`);
     lastCalibrationScore = score;
@@ -239,9 +262,9 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     Object.entries({position:'absolute',top:'50vh',left:'50vw',transform:'translate(-50%,-50%)'}).forEach( s => message.style[s[0]]=s[1] );
     calibrationDiv.append(message);
   }
-  const calibrate = async (threshold,attempts) => {
-    threshold = (isNaN(threshold)?0:Math.min(100,Math.max(0,Number(threshold))))
-    await showTracker(true);
+  const calibrate = async (threshold,attempts,showDotFrame=false) => {
+    threshold = (isNaN(threshold)?0:Math.min(100,Math.max(0,Number(threshold))));
+    showPredictionDot();
     [...calibrationDiv.children].forEach(c=>c.remove());
     document.body.append(calibrationDiv);
     if (!detectedFace) {
@@ -250,11 +273,13 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     }
     console.log("calibrate, before removeMouseEventListeners");
     webgazer.removeMouseEventListeners();
-    let calibrated = false;
-    await showTracker(false);
+    let score = 0, calibrated = false;
+    showPredictionDot(false);
     if (lastCalibrationScore>=threshold) {
       await waitDuration(500);
-      const score = await scoreFixation();
+      showPredictionDot();
+      score = await scoreFixation(showDotFrame,'short');
+      showPredictionDot(false);
       calibrated = score >= threshold;
     }
     // if (calibrated==false) webgazer.clearData();
@@ -263,7 +288,7 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
       webgazer.clearData();
       attempts--;
       [...calibrationDiv.children].forEach(n=>n.remove());
-      await showTracker(true);
+      showPredictionDot();
       if (videoElement instanceof Node) videoElement.style.opacity = 1; // changing display messes with calibration
       await new Promise(r=>{
         const startButton = document.createElement("button");
@@ -273,17 +298,14 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
         calibrationDiv.append(startButton);
         startButton.addEventListener("click",()=>{ startButton.remove(); r(); });
       });
-      // await showTracker(false);
-      // await webgazer.showVideo(false);
-      await webgazer.showPredictionPoints(true);
       if (videoElement instanceof Node) videoElement.style.opacity = 0; // changing display messes with calibration
       let d = printDot('50vw','50vh','-50%','-50%');
       await waitDuration(1000);
       d.remove();
       const positions = [
-        {x:0,y:0,tX:0,tY:0},{x:"50vw",y:0,tX:"-50%",tY:0},{x:"100vw",y:0,tX:"-100%",tY:0},
-        {x:0,y:"50vh",tX:0,tY:"-50%"},/*         central one added last        ,*/{x:"100vw",y:"50vh",tX:"-100%",tY:"-50%"},
-        {x:0,y:"100vh",tX:0,tY:"-100%"},{x:"50vw",y:"100vh",tX:"-50%",tY:"-100%"},{x:"100vw",y:"100vh",tX:"-100%",tY:"-100%"}
+        {x:"2vw",y:"2vh",      tX:0,tY:0}, {x:"50vw",y:"2vh",tX:"-50%",tY:0},       {x:"98vw",y:"2vh",tX:"-100%",tY:0},
+        {x:"2vw",y:"50vh", tX:0,tY:"-50%"},/*       central one added last       ,*/{x:"98vw",y:"50vh",tX:"-100%",tY:"-50%"},
+        {x:"2vw",y:"98vh",tX:0,tY:"-100%"},{x:"50vw",y:"98vh",tX:"-50%",tY:"-100%"},{x:"98vw",y:"98vh",tX:"-100%",tY:"-100%"}
       ];
       window.fisherYates(positions);
       positions.push({x:"50vw",y:"50vh",tX:"-50%",tY:"-50%"});
@@ -298,11 +320,9 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
         await fixateDot(dot);
         dot.remove();
       }
-      // await showTracker(true);
       console.log("calibration phase over, now moving on to validateFixation");
-      const score = await scoreFixation();
-      // await showTracker(false);
-      await webgazer.showPredictionPoints(false);
+      score = await scoreFixation(showDotFrame);
+      showPredictionDot(false);
       calibrated = score >= threshold;
       if (!calibrated && attempts>0) {
         showFailedCalibrationMessage(threshold,score);
@@ -310,6 +330,8 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
       }
     }
     calibrationDiv.remove();
+    webgazer.addMouseEventListeners();
+    return score;
   }
 
   this.immediate = function(name,span,proportion){ 
@@ -361,11 +383,11 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
     r();
   }
   this.end = async function(){ 
-    await showTracker(false);
+    showPredictionDot(false);
     webgazer.removeMouseEventListeners();
     currentETElement = undefined;
     if (this._log && this._elements instanceof Array && this._elements.length) {
-      this.log("StartTracking","Time",this._startTime);
+      this.log("StartTracking","Time",this._startTime,this._score);
       const log = (param,value,time) => {
         if (typeof(trackerURL)=="string" && trackerURL.match(/^https?:/i)){
           const data = {experiment:XpName,id:SessionID,pcnumber:PennEngine.order.current.id,parameter:param,value:value};
@@ -411,7 +433,10 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
       }
       r(); 
     },
-    calibrate: async function(r,threshold,attempts){ await calibrate(threshold,attempts); this._calibrated = true; r(); },
+    calibrate: async function(r,threshold,attempts){ 
+      this._score = await calibrate(threshold,attempts,this._showDotFrames);
+      this._calibrated = true; r(); 
+    },
     $callback: async function(r,...commands) {
       this.addEventListener("data", PennEngine.utils.parallel(async (data,clock)=>{
         for (let i=0; i<commands.length; i++){
@@ -422,15 +447,17 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
       }));
       r();
     },
-    hideFeedback: function(r){ showTracker(false).then(r); },
-    showFeedback: function(r) { showTracker(true).then(r); },
+    hideFeedback: function(r){ showPredictionDot(false); r(); },
+    hideDotFrames: function(r) { this._showDotFrames = false; r(); },
+    showFeedback: function(r) { showPredictionDot(true); r(); },
+    showDotFrames: function(r) { this._showDotFrames = true; r(); },
     start: function(r){ currentETElement = this; this._startTime = Date.now(); r(); },
     stop: function(r){ currentETElement = undefined; this._stopTime = Date.now(); r(); },
     stopTraining: function(r){ webgazer.removeMouseEventListeners(); r(); },
     train: async function(r,showDot){ 
       webgazer.addMouseEventListeners();
       if (!this._trainOnMouseMove) document.removeEventListener("mousemove", moveEvent, true);
-      if (showDot) await showTracker(true); 
+      if (showDot) showPredictionDot(true); 
       r(); 
     },
     trainOnMouseMove: function(r,yesNo){
@@ -452,7 +479,11 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
         }
       }
     },
-    ready: function(){ return window.webgazer!==undefined && webgazer.isReady(); }
+    ready: function(){ return window.webgazer!==undefined && webgazer.isReady(); },
+    score: function(s){ 
+      if (s instanceof Function) return s(this._score);
+      else return this._score >= (s || 0); 
+    }
   }
 });
 

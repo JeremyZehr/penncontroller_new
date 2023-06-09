@@ -18,14 +18,14 @@ window.PennController._AddElementType('Selector', function (PennEngine){
     this._keys = [];
     this._selectedElement = undefined;
     this._clickHandler = e=>{
-      if (!this._clicksEnabled) return;
+      if (this._disabled || !this._clicksEnabled) return;
       const element = this._elements.find(el=>(el._nodes||{main:document.createElement("p")}).main.contains(e.target));
       if (element===undefined) return;
       this.dispatchEvent("select", element);
     };
     document.body.addEventListener("click", this._clickHandler, true);
     this._keyHandler = e=>{
-      if (e.repeat) return;
+      if (this._disabled || e.repeat) return;
       const idx = PennEngine.utils.keyMatch(e,this._keys);
       if (idx<0 || idx>this._elements.length) return;
       this.dispatchEvent("select", this._elements[idx]);
@@ -33,15 +33,17 @@ window.PennController._AddElementType('Selector', function (PennEngine){
     document.body.addEventListener("keydown", this._keyHandler);
     let hoveredElement, oldCursor;
     this._mouseMoveListener = e=>{
+      if (this._disabled) return;
       if (hoveredElement===undefined && this._clicksEnabled) {
         const element = this._elements.find(el=>(el._nodes||{main:document.createElement("p")}).main.contains(e.target));
         if (element===undefined) return;
         hoveredElement = element;
+        if (!element._nodes || !(element._nodes.main instanceof Node)) return;
         oldCursor = hoveredElement._nodes.main.style.cursor;
         hoveredElement._nodes.main.style.cursor = "pointer";
       }
-      else if (!this._clicksEnabled || !hoveredElement._nodes.main.contains(e.target)){
-        if (hoveredElement) hoveredElement._nodes.main.style.cursor = oldCursor;
+      else if (!this._clicksEnabled || !hoveredElement || (!hoveredElement._nodes instanceof Node) || !hoveredElement._nodes.main.contains(e.target)){
+        if (hoveredElement && hoveredElement._nodes instanceof Node) hoveredElement._nodes.main.style.cursor = oldCursor;
         hoveredElement = undefined;
       }
     }
@@ -65,7 +67,7 @@ window.PennController._AddElementType('Selector', function (PennEngine){
     if (this._mouseMoveListener instanceof Function) document.body.removeEventListener("mousemove", this._mouseMoveListener);
     if (this._keyHandler instanceof Function) document.body.removeEventListener("keydown", this._keyHandler);
     if (!this._log || !(this._events instanceof Array)) return;
-    const strLog = (this._log instanceof Array?this._log:["last"]).filter(s=>typeof(s)=="string").map(s=>s.toLowerCase());
+    const strLog = this._log.filter(s=>typeof(s)=="string").map(s=>s.toLowerCase());
     this._events.forEach((e,i)=>{
       if (i==this._events.length-1&&strLog.indexOf("last")>=0 || i==0&&strLog.indexOf("first")>=0 || strLog.indexOf("all")>=0)
         this.log(...e);
@@ -131,6 +133,7 @@ window.PennController._AddElementType('Selector', function (PennEngine){
     enableClicks: function(r){ r(this._clicksEnabled = true); },
     frame: function(r,style){
       this.addEventListener("select", e=>{
+        if (this._disabled) return;
         if (this._frame instanceof Node) this._frame.remove();
         this._frame = this._frame || document.createElement("DIV");
         this._frame.style.position = 'absolute';
@@ -149,7 +152,7 @@ window.PennController._AddElementType('Selector', function (PennEngine){
     },
     keys: function(r,...keys){ r(this._keys = keys); },
     log: function(r,...whats) {
-      if (whats.length==0) this._log = true;
+      if (whats.length==0) this._log = ["last"];
       else this._log = whats;
       r();
     },

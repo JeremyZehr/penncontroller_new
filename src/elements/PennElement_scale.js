@@ -14,11 +14,12 @@ window.PennController._AddElementType('Scale', function (PennEngine){
         input.id = input.name+'-'+i;
         input.value = (typeof(v)=="string"||typeof(v)=="number")?v:i;
         input.type = this._scaleType;
-        if (input.value==this._value && (this._scaleType=="radio"||this._scaleType=="checkbox")) input.checked = true;
+        if (input.value===this._value && (this._scaleType=="radio"||this._scaleType=="checkbox")) input.checked = true;
+        if (this._disabled) input.setAttribute("disabled",1);
         const callback = ()=>this.dispatchEvent("select", input.value, this._scaleType=='checkbox'?input.checked:undefined);
         if (this._scaleType=="button") {
           input.onclick = callback;
-          this.addEventListener("select", v=>v===input.value && input.classList.add("clicked"));
+          this.addEventListener("select", v=>!this._disabled && v===input.value && input.classList.add("clicked"));
         }
         else input.onchange = callback;
         cell.append(input);
@@ -74,6 +75,13 @@ window.PennController._AddElementType('Scale', function (PennEngine){
     this._scaleType = this._initialScaleType;
     this._values = this._initialValues||[];
     this._labels = [...this._values];
+    // check for duplicate values
+    const duplicateValues = {};
+    for (let i in this._values) duplicateValues[this._values[i]] = [...(duplicateValues[this._values[i]]||[]),i];
+    for (let v in duplicateValues) {
+      if (duplicateValues[v].length==1) continue;
+      for (let i in duplicateValues[v]) this._values[i] = v + '-' + i;
+    }
     this._nPoints = this._initialNPoints||this._values.length;
     this._nodes = {main: document.createElement("DIV")};
     this._cells = document.createElement("DIV");
@@ -84,6 +92,7 @@ window.PennController._AddElementType('Scale', function (PennEngine){
     this._selects = [];
     this.addEventListener("print", ()=>buildScale.call(this));
     this.addEventListener("select", (v,d)=>{
+      if (this._disabled) return;
       const dn = Date.now();
       const toPush = [v,dn]
       this._value=v;
@@ -96,7 +105,7 @@ window.PennController._AddElementType('Scale', function (PennEngine){
     });
     this._keys = [];
     this._keysHandler = e=>{
-      if (e.repeat) return;
+      if (this._disabled || e.repeat) return;
       const idx = PennEngine.utils.keyMatch(e,this._keys);
       if (idx<0) return;
       const v = this._values[idx];
@@ -111,8 +120,14 @@ window.PennController._AddElementType('Scale', function (PennEngine){
   }
   this.end = async function(){ 
     if (this._keysHandler instanceof Function) document.body.removeEventListener("keydown", this._keysHandler);
-    if (!this._log || !(this._selects instanceof Array)) return;
-    const strLog = (this._log instanceof Array?this._log:["last"]).filter(s=>typeof(s)=="string").map(s=>s.toLowerCase());
+    if (!this._log) return;
+    if (this._scaleType=="checkbox") {
+      const now = Date.now();
+      for (let c of [...this._cells.querySelectorAll("input")])
+        this.log(c.value, c.checked, now, "Status at the end of the trial");
+    }
+    else if (!(this._selects instanceof Array)) return;
+    const strLog = this._log.filter(s=>typeof(s)=="string").map(s=>s.toLowerCase());
     this._selects.forEach((s,i)=>{
       if (i==this._selects.length-1&&strLog.indexOf("last")>=0 || i==0&&strLog.indexOf("first")>=0 || strLog.indexOf("all")>=0)
         this.log("Select", ...s)
@@ -122,18 +137,22 @@ window.PennController._AddElementType('Scale', function (PennEngine){
   this.actions = {
     $callback: function(r,...rest) {
       this.addEventListener("select", PennEngine.utils.parallel(async v=>{
+        if (this._disabled) return;
         for (let i = 0; i < rest.length; i++)
           if (rest[i] instanceof Function) await rest[i].call(PennEngine.trials.current,v);
       }));
       r();
     },
     select: async function(r,v,o){
-      this._value = v;
+      // try to find passed value in the list first
+      this._value = this._values.find(w=>w===v);
+      // if the value wasn't found and v is a number, use it as an index
+      if (this._value===undefined && typeof(v)=="number" && v>=0 && v<this._values.length) this._value = this._values[v];
       let checkboxesToKeepSelected = [];
       if (v!==undefined && this._scaleType=="checkbox")
-        checkboxesToKeepSelected = [...this._cells.querySelectorAll("input")].filter(i=>i.checked).map(i=>i.value);
+        checkboxesToKeepSelected = [...this._cells.querySelectorAll("input")].filter(i=>i.checked).map(i=>i.id);
       if (document.body.contains(this._nodes.main)) await buildScale.call(this);
-      [...this._cells.querySelectorAll("input")].forEach(i=>checkboxesToKeepSelected.indexOf(i.value)>=0 && (i.checked=true));
+      [...this._cells.querySelectorAll("input")].forEach(i=>checkboxesToKeepSelected.indexOf(i.id)>=0 && (i.checked=true));
       if (o!==undefined) this.dispatchEvent("select", v);
       r();
     },
@@ -150,7 +169,7 @@ window.PennController._AddElementType('Scale', function (PennEngine){
     $wait: function(r,t) { 
       let waited = false;
       this.addEventListener("select", PennEngine.utils.parallel(async v=>{
-        if (waited || (t instanceof Function && !(await t.call(PennEngine.trials.current,v)))) return;
+        if (this._disabled || waited || (t instanceof Function && !(await t.call(PennEngine.trials.current,v)))) return;
         this.dispatchEvent("waited");
         r(waited=true);
       }));
@@ -169,6 +188,22 @@ window.PennController._AddElementType('Scale', function (PennEngine){
       r();
     },
     default: function (r,d){ this._default = d; r(); },
+    disable: function(r){
+      this._disabled = true;
+      if (this._cells instanceof Node) {
+        const inputs = this._cells.querySelectorAll("input");
+        if (inputs.length) inputs.forEach(i=>i.setAttribute("disabled",1));
+      }
+      r();
+    },
+    enable: function(r){
+      this._disabled = false;
+      if (this._cells instanceof Node) {
+        const inputs = this._cells.querySelectorAll("input");
+        if (inputs.length) inputs.forEach(i=>i.removeAttribute("disabled"));
+      }
+      r();
+    },
     horizontal: function(r){ this._orientation = "horizontal"; r(); },
     keys: function(r,...keys) { this._keys = keys; r(); },
     $label: async function(r,n,l) {
@@ -193,8 +228,17 @@ window.PennController._AddElementType('Scale', function (PennEngine){
       r(); 
     },
     log: function(r,...whats) {
-      if (whats.length==0) this._log = true;
+      if (whats.length==0) this._log = [this._scaleType==="checkbox"?"":"last"];
       else this._log = whats;
+      r();
+    },
+    once: function(r){
+      this.addEventListener("select", PennEngine.utils.parallel(e=>{
+        this._disabled = true;
+        if (!(this._cells instanceof Node)) return;
+        const inputs = this._cells.querySelectorAll("input");
+        if (inputs.length) inputs.forEach(i=>i.setAttribute("disabled",1));
+      }) );
       r();
     },
     radio: async function (r){

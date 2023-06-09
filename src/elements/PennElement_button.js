@@ -9,7 +9,12 @@ window.PennController._AddElementType('Button', function (PennEngine){
     // this._nodes.main.innerText = this._initialText;
     this._nodes.main.innerHTML = this._initialText;
     this._clicks = [];
-    this._nodes.main.addEventListener("click", e=>this._clicks.push(Date.now()));
+    this.addEventListener("click", PennEngine.utils.parallel(async e=>{
+      if (this._disabled) return;
+      this._clicks.push(Date.now());
+      this.dispatchEvent("waited");
+    }));
+    this._nodes.main.addEventListener("click", e=>this.dispatchEvent("click"));
     r();
   }
   this.end = async function(){ 
@@ -18,7 +23,7 @@ window.PennController._AddElementType('Button', function (PennEngine){
   this.value = async function () { return (this._nodes||{main:{}}).main.innerText; }
   this.actions = {
     $callback: function(r,...rest) {
-      this._nodes.main.addEventListener("click", PennEngine.utils.parallel(async e=>{
+      this.addEventListener("click", PennEngine.utils.parallel(async e=>{
         for (let i = 0; i < rest.length; i++)
           if (rest[i] instanceof Function) await rest[i].call();
       }));
@@ -28,7 +33,7 @@ window.PennController._AddElementType('Button', function (PennEngine){
     text: function (r,text) { r(this._nodes.main.innerText = text); },
     $wait: function(r,t) { 
       let waited = false;
-      this._nodes.main.addEventListener('click',PennEngine.utils.parallel(async e=>{
+      this.addEventListener('click', PennEngine.utils.parallel(async e=>{
         if (waited || (t instanceof Function && !(await t.call()))) return;
         this.dispatchEvent("waited");
         r(waited=true);

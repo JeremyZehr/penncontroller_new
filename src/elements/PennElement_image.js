@@ -2,12 +2,17 @@ window.PennController._AddElementType('Image', function (PennEngine){
   this.immediate = function(name,path){ 
     if (name===undefined) name = "Image";
     if (path===undefined) path = name;
-    this.addResource(path, async (uri) => {
+    this.addResource(path, async uri => { // uri => new Promise((resolve,reject) => {
       const image = document.createElement("IMG");
       image.src = uri;
       image.style['width'] = '100%';
       image.style['height'] = '100%';
-      await new Promise(r=>image.onload = r);
+      const p = await new Promise(r=>{
+        image.onerror = e=>r(Error("Error loading image: "+e));
+        image.onabort = e=>r(Error("Image loading aborted: "+e));
+        image.onload = r
+      });
+      if (p instanceof Error) throw p;
       return image;
     })
     .then( o => {
@@ -30,7 +35,7 @@ window.PennController._AddElementType('Image', function (PennEngine){
     if (!this._log) return;
     if (!this._prints || this._prints.length==0) this.log("Print", "", null, "Never printed");
     for (let i = 0; i < this._prints; i++)
-      this.log("Print","NA",this._prints[i].date,encodeURIComponent(this._prints[i].args.join(' ')));
+      this.log("Print","NA",this._prints[i].date,this._prints[i].args.join(' '));
   }
   this.value = async function () { 
     if (this._image instanceof Node) return this._image.src;

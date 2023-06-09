@@ -14,11 +14,11 @@ window.PennController._AddElementType('Tooltip', function (PennEngine){
     this._label.innerHTML = this._initialLabel||"OK";
     this._label.style.width = "fit-content";
     this._label.style.float = "right";
-    this._label.addEventListener("click", ()=>this._clicksEnabled && this.dispatchEvent("validate"));
-    this.addEventListener("validate", ()=>this._nodes && this._nodes.parent instanceof Node && this._nodes.parent.remove());
+    this._label.addEventListener("click", ()=>!this._disabled && this._clicksEnabled && this.dispatchEvent("validate"));
+    this.addEventListener("validate", ()=>!this._disabled && this._nodes && this._nodes.parent instanceof Node && this._nodes.parent.remove());
     this._keys = undefined;
     this._keydown =  e=>{
-      if (e.repeat) return;
+      if (this._disabled || e.repeat) return;
       if (!this._nodes || !(this._nodes.main instanceof Node) || !document.documentElement.contains(this._nodes.main)) return;
       if (this._keys && PennEngine.utils.keyMatch(e,this._keys)>=0) this.dispatchEvent("validate");
       return true;
@@ -123,14 +123,14 @@ window.PennController._AddElementType('Tooltip', function (PennEngine){
     if (!this._log) return;
     if (!(this._prints instanceof Array) || this._prints.length==0) this.log("Print", "", null, "Never printed");
     for (let i = 0; i < this._prints; i++)
-      this.log("Print","NA",this._prints[i].date,encodeURIComponent(this._prints[i].args.join(' ')));
+      this.log("Print","NA",this._prints[i].date,this._prints[i].args.join(';'));
   }
   this.value = async function () { return (this._nodes||{main: {innerText:""}}).main.innerText; }
   this.actions = {
     $wait: async function(r,t){
       let waited = false;
       this.addEventListener("validate", PennEngine.utils.parallel(async ()=>{
-        if (waited || (t instanceof Function && !(await t.call()))) return;
+        if (this._disabled || waited || (t instanceof Function && !(await t.call()))) return;
         waited = true;
         this.dispatchEvent("waited");
         r();
