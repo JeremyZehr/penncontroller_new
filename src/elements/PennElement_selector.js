@@ -106,6 +106,7 @@ window.PennController._AddElementType('Selector', function (PennEngine){
       }
       else if (this._nodes)
         for (let n in this._nodes) this._nodes[n].remove();
+      r();
     },
     $select: async function(r,c) {
       if (!(c instanceof PennEngine.Commands)) return r();;
