@@ -130,6 +130,11 @@ const processComplexPrint = async function (...args) {
     else if (typeof(v)=="string"&&v.match(/^(before|after)$/i)) beforeOrAfter = v.toLowerCase();
   });
   if (coordinates.length==0) updatePrints.set(this._nodes.parent, undefined);
+  else if ( 
+    (typeof(coordinates[0])=="string" && coordinates[0].match(/top|bottom/i)) ||
+    (typeof(coordinates[1])=="string" && coordinates[1].match(/left|right/i))
+  ) // if coordinates were passed as [y,x] reorder them as [x,y]
+    coordinates = [coordinates[1],coordinates[0]];
   if (where){
     const addBeforeOrAfterToWhere = ()=> {
       const whereNodes = where._element._nodes;

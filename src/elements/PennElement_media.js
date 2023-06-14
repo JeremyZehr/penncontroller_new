@@ -21,6 +21,16 @@ window.PennController.newTrial.ResetPrefix = function(prefix){
   return oldResetPrefix.call(this,prefix);
 }
 
+// Create a rewind helper method for safe 
+const rewind = o=>{
+  if (!(o instanceof Node)) return;
+  const v = o.volume;
+  o.volume = 0;
+  o.pause();
+  if (o.currentTime !== 0 && (o.currentTime > 0 && o.currentTime < o.duration)) o.currentTime = 0;
+  o.volume = v;
+}
+
 const addMediaElement = mediaType => window.PennController._AddElementType(mediaType, function(PennEngine) {
   
   // This is executed when Ibex runs the script in data_includes (not a promise, no need to resolve)
@@ -58,7 +68,7 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
       return object;
     })
     .then( o => {
-      o.currentTime = 0;
+      rewind(o);
       o.controls = (mediaType=="Audio"?true:false);
       o.style["max-width"] = "100%";
       o.style["max-height"] = "100%";
@@ -82,6 +92,9 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
 
   // This is executed when newAudio/newVideo is executed in the trial (converted into a Promise, so call resolve)
   this.uponCreation = async function(r){
+    if (this._media instanceof Node) {
+
+    }
     this._hasPlayed = false;                 // Whether the media has played before
     this.addEventListener("ended", ()=>this._hasPlayed=true);
     this._events = [];
@@ -120,14 +133,7 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
 
   // This is executed at the end of a trial
   this.end = function(){
-    if (this._media instanceof Node){
-      const v = this._media.volume;
-      this._media.volume = 0;
-      this._media.pause();
-      if (this._media.currentTime !== 0 && (this._media.currentTime > 0 && this._media.currentTime < this._media.duration))
-        this._media.currentTime = 0;
-      this._media.volume = v;
-    }
+    rewind(this._media);
     if (this._disableLayer instanceof Node) {
       this._disableLayer.remove();
       this._disableLayer = undefined;
@@ -146,6 +152,7 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
     /* $AC$ Audio PElement.play() Starts the audio playback $AC$ */
     /* $AC$ Video PElement.play() Starts the video playback $AC$ */
     play: async function(r, loop){
+      rewind(this._media);
       if (!(this._media instanceof HTMLMediaElement)) 
         return r(PennEngine.debug.error(`No media to play for ${mediaType} element ${this._name}`));
       if (loop===undefined) this._media.removeAttribute("loop");
