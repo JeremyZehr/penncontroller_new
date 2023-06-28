@@ -17,11 +17,13 @@ window.PennController._AddElementType('Scale', function (PennEngine){
         if (input.value===this._value && (this._scaleType=="radio"||this._scaleType=="checkbox")) input.checked = true;
         if (this._disabled) input.setAttribute("disabled",1);
         const callback = ()=>this.dispatchEvent("select", input.value, this._scaleType=='checkbox'?input.checked:undefined);
-        if (this._scaleType=="button") {
-          input.onclick = callback;
-          this.addEventListener("select", v=>!this._disabled && v===input.value && input.classList.add("clicked"));
-        }
+        if (this._scaleType=="button") input.onclick = callback;
         else input.onchange = callback;
+        this.addEventListener("select", v=> {
+          if (this._disabled || this._scaleType!="button" || v!==input.value) return;
+          [...this._cells.querySelectorAll("input")].forEach(i=>i.classList.remove("clicked"));
+          input.classList.add("clicked")
+        });
         cell.append(input);
         cell.style.display = 'flex';
         const label = document.createElement("LABEL");

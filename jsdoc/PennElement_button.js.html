@@ -1,24 +1,51 @@
-/**
- * The Button element lets you print buttons on the page and wait for clicks on them
- * @namespace Button
- */
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: PennElement_button.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: PennElement_button.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/** @typedef {(function)} Command */
 window.PennController._AddElementType('Button', function (PennEngine){
   /**
    * Creates a new Button element
-   * @function newButton 
-   * @memberof Button
+   * @function newButton
    * @param {string} name - The name of the element
    * @param {string} [text=name] - The text of the button
-   * @global
-   * @see Button
    */
   this.immediate = function(name,text){ 
     if (name===undefined) name = "Button";
     if (text===undefined) text = name;
     this._initialText = text;
   }
+  /**
+   * Reference to a Button element
+   * @namespace getButton
+   */
   this.uponCreation = async function(r){
     this._nodes = {main: document.createElement("BUTTON")};
+    // this._nodes.main.innerText = this._initialText;
     this._nodes.main.innerHTML = this._initialText;
     this._clicks = [];
     this.addEventListener("click", PennEngine.utils.parallel(async e=>{
@@ -30,21 +57,20 @@ window.PennController._AddElementType('Button', function (PennEngine){
     r();
   }
   this.end = async function(){ 
-    if (this._log && this._clicks) this._clicks.forEach(c=>this.log("Click", "Click", c));
+    if (this._log &amp;&amp; this._clicks) this._clicks.forEach(c=>this.log("Click", "Click", c));
   }
   this.value = async function () { return (this._nodes||{main:{}}).main.innerText; }
   this.actions = {
     /**
      * Executes commands/functions when the button is clicked
      * @function callback
-     * @memberof Button
+     * @param  {...Command} command - Command(s)/function(s) to run whenever the button is clicked
+     * @memberof getButton
      * @instance
-     * @param {Command} command - Command/function to run whenever the button is clicked
-     * @param  {...Command} [commands] - Additional commands/functions to run
      */
     $callback: function(r,...rest) {
       this.addEventListener("click", PennEngine.utils.parallel(async e=>{
-        for (let i = 0; i < rest.length; i++)
+        for (let i = 0; i &lt; rest.length; i++)
           if (rest[i] instanceof Function) await rest[i].call();
       }));
       r();
@@ -52,29 +78,29 @@ window.PennController._AddElementType('Button', function (PennEngine){
     /**
      * Simulates a click on the button
      * @function click
-     * @memberof Button
+     * @memberof getButton
      * @instance
      */
     click: function(r) { this._nodes.main.click(); r(); },
     /**
      * Sets the text of the button
-     * @function text 
-     * @memberof Button
-     * @instance
+     * @function text
      * @param {string} text - The text to show on the button
+     * @memberof getButton
+     * @instance
      */
     text: function (r,text) { r(this._nodes.main.innerText = text); },
     /**
      * Halts the script until the button is clicked
-     * @function wait 
-     * @memberof Button
-     * @instance
+     * @function wait
      * @param  {Command} [test] - Resumes the script only if the test is successful
+     * @memberof getButton
+     * @instance
      */
     $wait: function(r,t) { 
       let waited = false;
       this.addEventListener('click', PennEngine.utils.parallel(async e=>{
-        if (waited || (t instanceof Function && !(await t.call()))) return;
+        if (waited || (t instanceof Function &amp;&amp; !(await t.call()))) return;
         this.dispatchEvent("waited");
         r(waited=true);
       }));
@@ -84,9 +110,32 @@ window.PennController._AddElementType('Button', function (PennEngine){
     /**
      * Tests whether the button has ever been clicked since its creation
      * @function test.clicked
-     * @memberof Button
+     * @memberof getButton
      * @instance
      */
     clicked: async function(t){ return this._clicks.length>0; }
   }
 });
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="getButton.html">getButton</a></li><li><a href="getCanvas.html">getCanvas</a></li></ul><h3>Global</h3><ul><li><a href="global.html#newButton">newButton</a></li><li><a href="global.html#newCanvas">newCanvas</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Wed Jun 28 2023 10:05:33 GMT+0200 (Central European Summer Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

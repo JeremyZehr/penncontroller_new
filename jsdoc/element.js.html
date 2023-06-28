@@ -1,4 +1,32 @@
-import { trials, SendResults, removeSendResultsFromItems } from './trial'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: element.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: element.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import { trials, SendResults, removeSendResultsFromItems } from './trial'
 import { PennEngine } from './pennengine';
 import { Resource } from './resource';
 import { standardCommands } from './standardCommands';
@@ -6,7 +34,7 @@ import { debug } from './debug';
 import { order } from './order';
 
 const firstPassOnArguments = async function(element) {
-  for (let i = 0; i < this.length; i++){
+  for (let i = 0; i &lt; this.length; i++){
     if (this[i] instanceof Self)  this[i] = this[i].call(element);
     else if (this[i] instanceof SendResults) {
       removeSendResultsFromItems(this[i]);
@@ -18,12 +46,12 @@ const firstPassOnArguments = async function(element) {
   return this;
 }
 const secondPassOnArguments = async function(skipEvalCommands) {
-  for (let i = 0; i < this.length; i++)
-    if (!skipEvalCommands && this[i] instanceof Commands){
+  for (let i = 0; i &lt; this.length; i++)
+    if (!skipEvalCommands &amp;&amp; this[i] instanceof Commands){
       await this[i].call();
       this[i] = await this[i]._element.value;
     }
-    else if (!skipEvalCommands && this[i] instanceof Function)
+    else if (!skipEvalCommands &amp;&amp; this[i] instanceof Function)
       this[i] = await this[i].call();
   return this;
 }
@@ -33,7 +61,7 @@ class Self { // A representation of Self to store invokation information and ret
   call(element){ 
     const c = element._commands;
     let currentObject = c;
-    for (let i = 0; i < this._commands.length; i++){
+    for (let i = 0; i &lt; this._commands.length; i++){
       const command = this._commands[i];
       if (command.length==1) currentObject = currentObject[command[0]]; // keyword (settings,test)
       else currentObject = currentObject[command[0]](...command[1]); // call command
@@ -48,7 +76,7 @@ Object.defineProperty(window,'self',{ get(){
       if (p=="setImmediate"||p=="clearImmediate") return ()=>handler; // Weird browser behavior
       if (p=="call") return (...args)=>s.call.apply(s,args);  // Get Commands on Self instance, not on Proxy
       s._commands.push([p]);
-      if (['settings','test'].indexOf(p)<0)  // Keywords
+      if (['settings','test'].indexOf(p)&lt;0)  // Keywords
         return (...args)=>{s._commands[s._commands.length-1].push(args); return handler};
       return handler;
     },
@@ -63,7 +91,7 @@ Object.defineProperty(window,'self',{ get(){
  * Underlyingly, commands are (asynchronous) functions and you can pass javascript functions
  * wherever PennController commands are referenced
  * @typedef {(function)} Command 
- * @example <caption>Commands in a callback</caption>
+ * @example &lt;caption>Commands in a callback&lt;/caption>
  * // Print a Text element on the page and a message in the console when the button is clicked
  * newButton("Click me!")
  *   .callback(
@@ -77,7 +105,7 @@ export class Commands extends Function {
     Object.defineProperty(this,'length',{writable: true});
     Object.defineProperty(this,'name',{writable: true});
     if (element instanceof Element) this._elementRef = element;
-    else if (element instanceof Array && element.length==3) this._elementRetrieval = element;
+    else if (element instanceof Array &amp;&amp; element.length==3) this._elementRetrieval = element;
     this._sequence = [];
     this._currentTrial = null;
     this._node = null;
@@ -103,11 +131,11 @@ export class Commands extends Function {
   }
   get _element() { 
     if (this._elementRef instanceof Element) return this._elementRef;
-    if (this._elementRetrieval instanceof Array && this._elementRetrieval.length == 3){
+    if (this._elementRetrieval instanceof Array &amp;&amp; this._elementRetrieval.length == 3){
       if (typeof(this._elementRetrieval[0])!="string" || typeof(this._elementRetrieval[2])!="string") return;
       const trial = this._elementRetrieval[1] || trials.current;
-      if (trial && trial._elements) {
-        const element = trial._elements.find( e=>e._type==this._elementRetrieval[2] && e._name == this._elementRetrieval[0] );
+      if (trial &amp;&amp; trial._elements) {
+        const element = trial._elements.find( e=>e._type==this._elementRetrieval[2] &amp;&amp; e._name == this._elementRetrieval[0] );
         if (element) {
           this._elementRef = element;
           return element;
@@ -119,8 +147,8 @@ export class Commands extends Function {
   _asProxy() {
     const p = new Proxy(this,{
       get(t,p){
-        if (typeof(p) == "string" && !Reflect.has(t,p)) 
-          throw Error(`Command get${t._element._type}("${t._element._name}").<strong>${p}</strong> does not exist`);
+        if (typeof(p) == "string" &amp;&amp; !Reflect.has(t,p)) 
+          throw Error(`Command get${t._element._type}("${t._element._name}").&lt;strong>${p}&lt;/strong> does not exist`);
         return Reflect.get(t,p);
       },
       set(t,p,v){
@@ -134,7 +162,7 @@ export class Commands extends Function {
     let trial_order;
     if (this._currentTrial) {
       const n = order.og.findIndex(v=>v.find(w=>w.options._trial==this._currentTrial));
-      if (n>=0) trial_order = `<em>(item #${n+1})</em>`
+      if (n>=0) trial_order = `&lt;em>(item #${n+1})&lt;/em>`
     }
     return trial_order;
    }
@@ -142,11 +170,11 @@ export class Commands extends Function {
     const skipEvalCommands = name.startsWith('$');
     name = name.replace(/^\$/,'');
     const f = function () {
-      if (name=="log" && arguments.length==2)
+      if (name=="log" &amp;&amp; arguments.length==2)
         debug.warning(`Called .log(${arguments[0]},${arguments[1]}) on get${this._element._type}(${this._element._name}); 
                         Did you mean to call it on newTrial() instead?`);
       firstPassOnArguments.call(arguments,this._element);
-      // for (let i = 0; i < arguments.length; i++)
+      // for (let i = 0; i &lt; arguments.length; i++)
       //   if (arguments[i] instanceof Self)  arguments[i] = arguments[i].call(this._element);
       const c = (trial,parent) => new Promise(async r=>{
         debug.log(`Running ${c.toString()} ${this._getItemNumber()||''}`);
@@ -170,7 +198,7 @@ export class Commands extends Function {
       firstPassOnArguments.call(arguments,that._element);
       const tests = [], successCommands = [], failureCommands = [];
       const handler = new Proxy(that, {get(target,prop){  // Handler add test methods (and,or,etc.) to the commands
-        if (['and','or','success','failure'].indexOf(prop)<0) return target[prop];
+        if (['and','or','success','failure'].indexOf(prop)&lt;0) return target[prop];
         return (...args) => {
           firstPassOnArguments.call(args,that._element);
           if (prop=='and'||prop=='or') tests.push({type:prop, test: args[0]});
@@ -184,15 +212,15 @@ export class Commands extends Function {
         const ors = [];
         ors[0] = await test.call(that._element,...args);
         if (not) ors[0] = !ors[0];
-        for (let t = 0; t < tests.length; t++){
+        for (let t = 0; t &lt; tests.length; t++){
           if (!(tests[t].test instanceof Function)) continue; // Instances of Commands are instances of Function
           if (tests[t].type=='or') ors.push(true);
           const s = await tests[t].test.call(that._currentTrial,that._node);
-          ors[ors.length-1] = ors[ors.length-1] && s;
+          ors[ors.length-1] = ors[ors.length-1] &amp;&amp; s;
         }
         const success = ors.reduce((m,n)=>m||n);
         let callback = (success ? successCommands : failureCommands);
-        for (let i = 0; i < callback.length; i++){
+        for (let i = 0; i &lt; callback.length; i++){
           if (!(callback[i] instanceof Function)) continue; // Instances of Commands are instances of Function
           await callback[i].call(that._currentTrial,that._node);
         }
@@ -222,7 +250,7 @@ export class Commands extends Function {
     // this._node = parent;
     this._node = parent || this._currentTrial._node;
     let lastValue = null;
-    for (let i = 0; i < this._sequence.length; i++) {
+    for (let i = 0; i &lt; this._sequence.length; i++) {
       if (trials.running!=this._currentTrial) {
         debug.warning(`Element command aborted: ${this._sequence}, ${i} ${this._getItemNumber()||''}`);
         lastValue = "ABORTED";
@@ -343,11 +371,11 @@ export const addElementType = (type, proto) => {
   elements['new'+type] = (...args) => {
     const element = new Element(type, p, ...args);
     // In case the immediate method didn't explicitly name the element, choose a name automatically
-    element._name = element._name || (args[0] && typeof(args[0])=="string" ? args[0] : type)
+    element._name = element._name || (args[0] &amp;&amp; typeof(args[0])=="string" ? args[0] : type)
     // Now make sure the name is unique
     const name = element._name;
     let i = 1;
-    while (trials.current._elements.find(e=>e._type==type && e._name==element._name)) element._name = name+'-'+parseInt(i=i+1);
+    while (trials.current._elements.find(e=>e._type==type &amp;&amp; e._name==element._name)) element._name = name+'-'+parseInt(i=i+1);
     if (element._name != name) debug.warning(`An element named ${name} already exists--naming this one ${element._name}`);
     // The element has its final name, now back it up
     backup.call(element);
@@ -360,15 +388,15 @@ export const addElementType = (type, proto) => {
         if (v.name.startsWith("test.")) thisFn=[p.test,p.test[v.name.replace(/^test\./,'')]];
         else if (v.name.startsWith("testNot.")) thisFn=[p.testNot,p.testNot[v.name.replace(/^testNot\./,'')]];
         else thisFn=[p,p[v.name]];
-        if (thisFn && thisFn[1] instanceof Function) p=thisFn[1].apply(thisFn[0],v.args);
-        else debug.error(`Could not find command default${type}.<strong>${v.name}</strong>`);
+        if (thisFn &amp;&amp; thisFn[1] instanceof Function) p=thisFn[1].apply(thisFn[0],v.args);
+        else debug.error(`Could not find command default${type}.&lt;strong>${v.name}&lt;/strong>`);
         return p;
       }, commands);
     // return commands;
     return commands._asProxy();
   }
   elements['get'+type] = name => {
-    const element = trials.current._elements.find( e=>e._type==type && e._name == name );
+    const element = trials.current._elements.find( e=>e._type==type &amp;&amp; e._name == name );
     if (element === undefined)
       debug.warning(`Found get${type}('${name}') before new${type}('${name}') could be found; make sure the element is created before the first get.`);
     // return new Commands(element,p.actions,p.settings,p.test);
@@ -394,3 +422,26 @@ PennEngine.Commands = Commands;
 PennEngine.Element = Element;
 PennEngine.evalArguments = secondPassOnArguments;
 PennEngine.elements = elements;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="Button.html">Button</a></li><li><a href="Canvas.html">Canvas</a></li><li><a href="StandardCommands.html">StandardCommands</a></li></ul><h3>Global</h3><ul><li><a href="global.html#newButton">newButton</a></li><li><a href="global.html#newCanvas">newCanvas</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Thu Jun 29 2023 00:31:16 GMT+0200 (Central European Summer Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
