@@ -104,6 +104,534 @@
     
 
     
+    <h4 class="name" id="clear"><span class="type-signature"></span>clear<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Removes all the elements currently on the page</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="standardCommands.js.html">standardCommands.js</a>, <a href="standardCommands.js.html#line634">line 634</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Removes both the Text and the Button elements (and any other element present on the page) when clicking the latter
+newText("Hello world").print(),
+newButton("Click me!").print().wait(),
+clear()</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="end"><span class="type-signature"></span>end<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Ends the trial without executing any remaining instructions in the trial</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="standardCommands.js.html">standardCommands.js</a>, <a href="standardCommands.js.html#line650">line 650</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Ends the trial whenever the button is clicked
+newButton("End the trial").callback( end() ).print()</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="exitFullscreen"><span class="type-signature"></span>exitFullscreen<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Exits fullscreen mode</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="standardCommands.js.html">standardCommands.js</a>, <a href="standardCommands.js.html#line664">line 664</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Exits fullscreen whenever the button is clicked
+newButton("Exit fullscreen").callback( exitFullscreen() ).print()</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="fullscreen"><span class="type-signature"></span>fullscreen<span class="signature">()</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Asks the browser to enter fullscreen mode (note that the user may block the request)</p>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="standardCommands.js.html">standardCommands.js</a>, <a href="standardCommands.js.html#line677">line 677</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Enters fullscreen whenever the button is clicked
+newButton("Enter fullscreen").callback( fullscreen() ).print()</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="jump"><span class="type-signature"></span>jump<span class="signature">(predicate)</span><span class="type-signature"></span></h4>
+    
+
+    
+    <p class="summary"><p>Finds the first trial in the sequence with a corresponding label and will continue the sequence from there</p></p>
+    
+
+
+
+<div class="description">
+    <p>Note that this command does not end the current trial.
+If the trial found comes before the current one, then you will effectively jump back in time in the sequence of trials;
+if it comes later, then you will skip any trials between this one and that one.</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>predicate</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+|
+
+<span class="param-type">function</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>A string representing a label, or a predicate matching the label of a trial you want to go to next</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="standardCommands.js.html">standardCommands.js</a>, <a href="standardCommands.js.html#line689">line 689</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Places the first trial labeled `"experiment"` in the sequence next, and immediately ends this one, upon clicking the button
+newButton("Go to the experiment").callback( jump("experiment"),end() ).print()</code></pre>
+
+
+
+        
+            
+
+    
+
+    
     <h4 class="name" id="newButton"><span class="type-signature"></span>newButton<span class="signature">(name, text<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
     
 
@@ -294,6 +822,12 @@
 
 
 
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Creates a Button element named "next" with the text "Move to the next trial"
+newButton("next", "Move to the next trial")</code></pre>
 
 
 
@@ -514,6 +1048,504 @@
 
 
 
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Creates a Canvas element named "myCanvas" of 300*200px
+newCanvas("myCanvas", 300, 200)</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="newController"><span class="type-signature"></span>newController<span class="signature">(name<span class="signature-attributes">opt</span>, controller, options)</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Creates a new Canvas element of the specified dimensions</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>name</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>The name of the element</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>controller</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>The name of the controller</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>options</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Object</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>The options passed to the controller</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="elements_PennElement_controller.js.html">elements/PennElement_controller.js</a>, <a href="elements_PennElement_controller.js.html#line9">line 9</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+    <dt class="tag-see">See:</dt>
+    <dd class="tag-see">
+        <ul>
+            <li><a href="Controller.html">Controller</a></li>
+        </ul>
+    </dd>
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Creates a Controller element named "myController" using the "Question" controller passing a question and answers as options
+newController("myController", "Question", {q: "Is this a question?", as: ["Yes","No"]})</code></pre>
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="newDragDrop"><span class="type-signature"></span>newDragDrop<span class="signature">(name<span class="signature-attributes">opt</span>, bungee<span class="signature-attributes">opt</span>, single<span class="signature-attributes">opt</span>, swap<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Creates a new Canvas element of the specified dimensions</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>name</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>The name of the element</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>bungee</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Passing <code>&quot;bungee&quot;</code> will make dragged elements go back to their initial position when dropped out of a drop zone</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>single</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Passing <code>&quot;single&quot;</code> will only allow one element per drop zone</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>swap</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last"><p>Passing <code>&quot;swap&quot;</code> will make an element dragged onto an occupied drop zone switch its place with the other element</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="elements_PennElement_dragdrop.js.html">elements/PennElement_dragdrop.js</a>, <a href="elements_PennElement_dragdrop.js.html#line134">line 134</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+    <dt class="tag-see">See:</dt>
+    <dd class="tag-see">
+        <ul>
+            <li><a href="DragDrop.html">DragDrop</a></li>
+        </ul>
+    </dd>
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5>Example</h5>
+    
+    <pre class="prettyprint"><code>// Creates a DragDrop element named "dd" with two draggable elements and two drop zones.
+// Elements dropped out of a drop zone will go back to their start position (bungee)
+// Dropping one element on a zone occupied by the other element will make them switch their positions (swap)
+newDragDrop("dd", "bungee", "swap")
+  .addDrag( newText("Cat").print() , newText("Dog").print() )
+  .addDrop(
+      newCanvas("like",100,100).color("cyan").add(25, 25, "Like").print(),
+      newCanvas("dislike",100,100).color("pink").add(25, 25, "Dislike").print(),
+  )</code></pre>
+
+
 
         
     
@@ -582,7 +1614,7 @@ wherever PennController commands are referenced</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="element.js.html">element.js</a>, <a href="element.js.html#line60">line 60</a>
+        <a href="element.js.html">element.js</a>, <a href="element.js.html#line78">line 78</a>
     </li></ul></dd>
     
 
@@ -684,7 +1716,7 @@ When the string only contains a unit value, it implicitly starts with <code>&quo
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="standardCommands.js.html">standardCommands.js</a>, <a href="standardCommands.js.html#line570">line 570</a>
+        <a href="standardCommands.js.html">standardCommands.js</a>, <a href="standardCommands.js.html#line709">line 709</a>
     </li></ul></dd>
     
 
@@ -774,7 +1806,7 @@ newButton("Click me!").print( "right at 100vw" , "bottom at 100vh" )</code></pre
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="element.js.html">element.js</a>, <a href="element.js.html#line256">line 256</a>
+        <a href="element.js.html">element.js</a>, <a href="element.js.html#line264">line 264</a>
     </li></ul></dd>
     
 
@@ -804,13 +1836,13 @@ newButton("Click me!").print( "right at 100vw" , "bottom at 100vh" )</code></pre
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="Button.html">Button</a></li><li><a href="Canvas.html">Canvas</a></li><li><a href="StandardCommands.html">StandardCommands</a></li></ul><h3>Global</h3><ul><li><a href="global.html#newButton">newButton</a></li><li><a href="global.html#newCanvas">newCanvas</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="Button.html">Button</a></li><li><a href="Canvas.html">Canvas</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DragDrop.html">DragDrop</a></li><li><a href="StandardCommands.html">StandardCommands</a></li></ul><h3>Global</h3><ul><li><a href="global.html#clear">clear</a></li><li><a href="global.html#end">end</a></li><li><a href="global.html#exitFullscreen">exitFullscreen</a></li><li><a href="global.html#fullscreen">fullscreen</a></li><li><a href="global.html#jump">jump</a></li><li><a href="global.html#newButton">newButton</a></li><li><a href="global.html#newCanvas">newCanvas</a></li><li><a href="global.html#newController">newController</a></li><li><a href="global.html#newDragDrop">newDragDrop</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Thu Jun 29 2023 00:31:16 GMT+0200 (Central European Summer Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Tue Jul 11 2023 12:04:46 GMT+0200 (Central European Summer Time)
 </footer>
 
 <script> prettyPrint(); </script>

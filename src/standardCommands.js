@@ -10,8 +10,12 @@ const scaledNodes = new Map(); // Keep track of nodes that are scaled
 const switchScaling = on=>{
   for (let n of scaledNodes.keys()) {
     if (!(n instanceof Node)) continue;
-    if (on) n.style.transform = (n.style.transform||"") + " " + scaledNodes.get(n);
-    else  n.style.transform = (n.style.transform||"").replace(/scale\([^,]+(,[^,]+)?\)/,'');
+    n.style.transform = (n.style.transform||"").replace(/scale\([^,]+(,[^,]+)?\)/,'');
+    if (on) {
+      const s = scaledNodes.get(n);
+      if (s==='unset') scaledNodes.delete(n);
+      else n.style.transform = n.style.transform + " " + s;
+    }
   }
 }
 const scalingOn = ()=>switchScaling(true);
@@ -63,7 +67,7 @@ const applyCoordinates = async (x,y,element,container,callback) => {
     else
       newbcr = container.getBoundingClientRect();
     // Don't do anything if BoundingClientRect hasn't changed since last update (turn scaling back on)
-    if (bcr && JSON.stringify(bcr)==JSON.stringify(newbcr)) return scalingOn() || window.requestAnimationFrame(update);
+    if (bcr && JSON.stringify(bcr)==JSON.stringify(newbcr)) return scalingOn() || window.requestAnimationFrame(()=>update(r));
     bcr = newbcr;
     const dummy = document.createElement("DIV");
     [['visibility','hidden'],['position','absolute'], // Create a dummy, hidden element in place of the one we want to print
@@ -192,7 +196,7 @@ const printBeforeOrAfter = async function(r,beforeOrAfter,what){
     if (what instanceof Commands) await what._element._commands.print(this._commands,beforeOrAfter).call();
     else {
       if (what instanceof Function) what = await what();
-      const thisNodes = this._element._nodes;
+      const thisNodes = this._nodes;
       thisNodes[beforeOrAfter] = (thisNodes[beforeOrAfter]||document.createElement("DIV"));
       thisNodes[beforeOrAfter].classList.add(beforeOrAfter);
       thisNodes[beforeOrAfter].append(what);
@@ -213,8 +217,8 @@ const printBeforeOrAfter = async function(r,beforeOrAfter,what){
 export const standardCommands = {
   actions: {
     /**
-     * Prints the content of the element somewhere on the page. 
-     * You can pass an element reference to print this element inside the referenced element.
+     * @summary Prints the content of the element somewhere on the page. 
+     * @description You can pass an element reference to print this element inside the referenced element.
      * @function print
      * @param  {Coordinate} [x] - The X coordinate where to print the element
      * @param  {Coordinate} [y] - The Y coordinate where to print the element
@@ -329,7 +333,9 @@ export const standardCommands = {
      */
     bold: async function(r){ await cssCommandOnNode.call(this, 'main', {'font-weight': 'bold'}); r(); },
     /**
-     * Horizontally centers the element. More precisely, the element's main DOM node is centered relative to its container,
+     * @summary Horizontally centers the element. 
+     * @description
+     * More precisely, the element's main DOM node is centered relative to its container,
      * while the container's width is set to 100%: the element therefore appears centered relative to its container's parent.
      * @example
      * // Prints some text horizontally centered
@@ -376,8 +382,8 @@ export const standardCommands = {
      */
     cssContainer: async function(r, ...args){ await cssCommandOnNode.call(this, 'parent', ...args); r(); },
     /**
-     * Adds selector-based CSS rules for the current trial that target children of the element.
-     * All the selectors will be automatically prefixed so they target children of the current element.
+     * @summary Adds selector-based CSS rules for the current trial that target children of the element.
+     * @description All the selectors will be automatically prefixed so they target children of the current element.
      * @param {string} rules - a valid string of CSS selectors and rules
      * @example
      * // Makes the selected option appear with a purple outline
@@ -414,8 +420,8 @@ export const standardCommands = {
      */
     enable: async function(r){ (this._nodes||{main:{removeAttribute:()=>null}}).main.removeAttribute("disabled"); this._disabled=undefined; r(); },
     /**
-     * Calls a function and passes it the element as the first argument.
-     * If the function returns a Promise (is async) execution is held until resolution.
+     * @summary Calls a function and passes it the element as the first argument.
+     * @description If the function returns a Promise (is async) execution is held until resolution.
      * @function function
      * @param {Function} fn - The function to call
      * @example
@@ -440,7 +446,9 @@ export const standardCommands = {
      */
     italic: async function(r){ await cssCommandOnNode.call(this, 'main', {'font-style': 'italic'}); r(); },
     /**
-     * Aligns the element to the left: the left edge of the element's main DOM node will be aligned relative to its container,
+     * @summary Aligns the element to the left.
+     * @description
+     * The left edge of the element's main DOM node will be aligned relative to its container,
      * while the container's width is set to 100%: the element therefore appears aligned with the left edge of its container's parent.
      * @example
      * // Prints two buttons under the text which, when clicked, move it to the left or to the right, respectively
@@ -454,8 +462,33 @@ export const standardCommands = {
      * @instance
      */
     left: async function(r){ await cssCommandOnNode.call(this, 'parent', {width: '100%', 'justify-content': 'start'}); r(); },
+    /**
+     * Will report relevant information in the results file. The effects of this command vary from one element to the other.
+     * @example
+     * // Will add a line to the results file reporting when the button is clicked
+     * newButton("Click me!").log().print().wait()
+     * @memberof StandardCommands
+     * @instance
+     */
     log: async function(r){ this._log = true; r(); },
+    /**
+     * Will disable the element after the relevant event has happened. The effects of this command vary from one element to the other.
+     * @example
+     * // Will disable the button after it has been clicked
+     * newButton("Click me!").once().print().wait()
+     * @memberof StandardCommands
+     * @instance
+     */
     once: function(r){ this.addEventListener("waited", ()=>{ (this._nodes||{main:{}}).main.disabled=true; this._disabled=true }); r(); },
+    /**
+     * Removes a CSS class from the element's DOM node and node's parent
+     * @param {string} className - The name of the class to remove
+     * @example
+     * // Removes the class "PennController-Text" from the element
+     * newText("Hello world").removeClass("PennController-Text").print()
+     * @memberof StandardCommands
+     * @instance
+     */
     removeClass: async function(r,cl){ 
       const d = Date.now();
       const f = ()=>{
@@ -469,7 +502,9 @@ export const standardCommands = {
       r( f() );
     },
     /**
-     * Aligns the element to the rght: the right edge of the element's main DOM node will be aligned relative to its container,
+     * @summary Aligns the element to the right.
+     * @description 
+     * The right edge of the element's main DOM node will be aligned relative to its container,
      * while the container's width is set to 100%: the element therefore appears aligned with the right edge of its container's parent.
      * @example
      * // Prints two buttons under the text which, when clicked, move it to the left or to the right, respectively
@@ -483,18 +518,46 @@ export const standardCommands = {
      * @instance
      */
     right: async function(r){ await cssCommandOnNode.call(this, 'parent', {width: '100%', 'justify-content': 'end'}); r(); },
-    scaling: async function(r,w,h){
-      w = String(w); h = String(h);
+    /**
+     * @summary Applies a uniform zoom-in/out effect to the element.
+     * @description
+     * Note that the element will still occupy an area corresponding to its original dimension 
+     * and its anchor point will remain unchanged.
+     * @param {number|string} wOrFactor - The new width, or the scaling factor of the element; passing `"page"` will automatically choose a scaling factor that makes the elment fit the page
+     * @param {number|string} [yOrTarget] - The new height of the element, or `"parent"` if you want to apply the scaling factor `wOrFactor` to the element's container
+     * @param {string} [target] - Pass `"parent"` when also setting `wOrFactor` and `hOrTarget` to new width and height to the element's container
+     * @example
+     * // Prints a canvas to the center of the page and makes sure its apparent size fits the page
+     * newCanvas("myCanvas", 300,200).color("yellow").print("center at 50vw","middle at 50vh").scaling("page")
+     * @memberof StandardCommands
+     * @instance
+     */
+    scaling: async function(r,w,h,applyTo){
+      if (typeof(w)=="string" && w.match(/parent|main/i)) [w,h,applyTo] = [h,applyTo,w];
+      if (typeof(h)=="string" && h.match(/parent|main/i)) [w,h,applyTo] = [w,undefined,h];
+      [w,h,applyTo] = [String(w),String(h),String(applyTo).match(/parent/i) ? 'parent' : 'main'];
+      let node = (this._nodes||{main:null,parent:null})[applyTo];
+      if (w.match(/off/i)) {
+        if (node) scaledNodes.set(node,'unset');
+        // make sure to turn scaling off for either node it was applied to
+        const otherNode = (this._nodes||{main:null,parent:null})[{main:'parent',parent:'main'}[applyTo]];
+        if (otherNode) scaledNodes.set(otherNode,'unset');
+        this._scalingCallback = ()=>this._scalingCallback=undefined;
+        return r();
+      }
       const dummy = document.createElement("DIV");
       dummy.style.visibility = 'hidden';
       dummy.style.position = 'absolute';
       dummy.style['pointer-events'] = 'none';
       let lastPrint;
       const callback = (print,oldW,oldH)=>{
-        const parent = (this._nodes||{parent:null}).parent;
-        if (print!=lastPrint||!document.documentElement.contains(parent)) return scaledNodes.set(parent,'unset');
+        node = (this._nodes||{main:null,parent:null})[applyTo]; // update node
+        if (print!=lastPrint||!document.documentElement.contains(node)) {
+          this._scalingCallback = ()=>this._scalingCallback=undefined;
+          return scaledNodes.set(node,'unset');
+        }
         let newW, newH;
-        if (w.match(/page|screen/i)) { newW=window.innerWidth; newH=window.innerHeight; }
+        if (w.match(/page|screen/i)) [newW, newH] = [window.innerWidth, window.innerHeight];
         else {
           if (w.match(/\d+(\.\d+)?(px)?\W*$/)) newW = parseInt(w);
           else if (w.match(/\d+(\.\d+)?[\w%]+/)){
@@ -515,7 +578,7 @@ export const standardCommands = {
         }
         if (newW!=oldW || newH!=oldH){
           scalingOff(); // Turn off scaling to compute BoundingClientRect
-          const copy = parent.cloneNode(/*deep:*/true);
+          const copy = node.cloneNode(/*deep:*/true);
           copy.style.position='absolute';copy.style.visibility='hidden';copy.style.scale='unset';
           document.body.prepend(copy);
           const bcr = copy.getBoundingClientRect();
@@ -524,43 +587,119 @@ export const standardCommands = {
           if (w.match(/page|screen/i)) { ratio_w = Math.min(ratio_w,ratio_h); ratio_h = ratio_w; }
           if (w.match(/auto/)) ratio_w = ratio_h;
           if (h.match(/auto/)) ratio_h = ratio_w;
-          scaledNodes.set(parent,`scale(${ratio_w},${ratio_h})`);
+          scaledNodes.set(node,`scale(${ratio_w},${ratio_h})`);
           scalingOn(); // Turn scaling back on
         }
-        window.requestAnimationFrame(()=>callback(print,newW,newH));
+        window.requestAnimationFrame(()=>this._scalingCallback(print,newW,newH));
       };
-      callback();
-      this.addEventListener("print", (...args) => { lastPrint = args; callback(lastPrint); });
+      if (this._scalingCallback===undefined) this._scalingCallback = callback;
+      if (node && document.documentElement.contains(node)) this._scalingCallback();
+      this.addEventListener("print", (...args) => { lastPrint = args; this._scalingCallback(lastPrint); });
       r();
     },
+    /**
+     * Resizes the element. Note that this applies to the element's main DOM node, not to its container.
+     * @param {number|string} w - The new width of the element
+     * @param {number|string} y - The new height of the element
+     * @example
+     * // Resizes a 300*200 canvas to 300*300 upon clicking the button
+     * newCanvas("myCanvas", 300,200).color("yellow").print(),
+     * newButton("Click me!").print().wait(),
+     * getCanvas("myCanvas").size(300,300)
+     * @memberof StandardCommands
+     * @instance
+     */
     size: async function(r,w,h) { await cssCommandOnNode.call(this, 'main', {width: w, height: h}); r(); }
   },
   tests: {
+    /**
+     * Tests whether the element is currently printed on the page
+     * @function test&period;printed
+     * @example
+     * // Alternates between printing and removing the Text element when clicking the button
+     * newText("Hello world"),
+     * newButton("Click me!")
+     *   .callback(
+     *     getText("Hello world").test.printed()
+     *       .success( getText("Hello world").remove() )
+     *       .failure( getText("Hello world").print() )
+     *   )
+     *   .print()
+     * @memberof StandardCommands
+     * @instance
+     */
     printed: function(){ return isPrinted((this._nodes||{}).main); }
   },
   special: {
+    /**
+     * Removes all the elements currently on the page
+     * @function clear
+     * @example
+     * // Removes both the Text and the Button elements (and any other element present on the page) when clicking the latter
+     * newText("Hello world").print(),
+     * newButton("Click me!").print().wait(),
+     * clear()
+     * @global
+     */
     clear: async function(){
       debug.log(`Running clear() -- removing all elements currently displayed`);
       for (let e in trials.running._elements)
         await trials.running._elements[e]._commands.remove().call(trials.running,null);
       return;
     },
+    /**
+     * Ends the trial without executing any remaining instructions in the trial
+     * @function end
+     * @example
+     * // Ends the trial whenever the button is clicked
+     * newButton("End the trial").callback( end() ).print()
+     * @global
+     */
     end: async function(){ 
       debug.log(`Running end() from current trial`);
       if (trials.running instanceof Trial) trials.running._end();
       else order.current.options._finishedCallback([]);
       return;
     },
+    /**
+     * Exits fullscreen mode
+     * @function exitFullscreen
+     * @example
+     * // Exits fullscreen whenever the button is clicked
+     * newButton("Exit fullscreen").callback( exitFullscreen() ).print()
+     * @global
+     */
     exitFullscreen: async function() {
       debug.log(`Running exitFullscreen()`);
       if (document.exitFullscreen) await new Promise(r=>document.exitFullscreen().then(r)
         .catch(e=>r(debug.warning("Ran exitFullscreen() while not in fullscreen mode"))));
     },
+    /**
+     * Asks the browser to enter fullscreen mode (note that the user may block the request)
+     * @function fullscreen
+     * @example
+     * // Enters fullscreen whenever the button is clicked
+     * newButton("Enter fullscreen").callback( fullscreen() ).print()
+     * @global
+     */
     fullscreen: async function() { 
       debug.log(`Running fullscreen()`);
       if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
     },
-    jump: async function(predicate,){
+    /**
+     * @summary Finds the first trial in the sequence with a corresponding label and will continue the sequence from there
+     * @description
+     * Note that this command does not end the current trial.
+     * If the trial found comes before the current one, then you will effectively jump back in time in the sequence of trials;
+     * if it comes later, then you will skip any trials between this one and that one.
+     * @function jump
+     * @param {string|function} predicate - A string representing a label, or a predicate matching the label of a trial you want to go to next
+     * @example
+     * // Places the first trial labeled `"experiment"` in the sequence next, and immediately ends this one, upon clicking the button
+     * newButton("Go to the experiment").callback( jump("experiment"),end() ).print()
+     * @global
+     */
+    jump: async function(predicate){
       debug.log(`Running jump(${predicate})`);
       await jump(predicate);
     }

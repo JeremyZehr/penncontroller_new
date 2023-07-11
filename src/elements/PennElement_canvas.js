@@ -9,6 +9,9 @@ window.PennController._AddElementType('Canvas', function (PennEngine){
    * @param {string} [name] - The name of the element
    * @param {number} width - The width, in pixels, of the Canvas element
    * @param {number} height - The height, in pixels, of the Canvas element
+   * @example
+   * // Creates a Canvas element named "myCanvas" of 300*200px
+   * newCanvas("myCanvas", 300, 200)
    * @global
    * @see Canvas
    */
@@ -30,6 +33,20 @@ window.PennController._AddElementType('Canvas', function (PennEngine){
     if (!this._log) return;
     if (!this._prints || this._prints.length==0) this.log("Print", "", null, "Never printed");
     const w = this._nodes.main.style.width, h = this._nodes.main.style.height;
+    /**
+     * @summary Adds a line to the results file reporting when the canvas was printed
+     * @description
+     * This will _not_ report one line for each contained element printed along with the canvas.
+     * The timestamp in the EventTime column corresponds to when the canvas appeared on the page.
+     * The Value column reports the size of the canvas in pixels at the time of printing (`width;height`)
+     * @example
+     * newCanvas("myCanvas", 300,200).log().print()
+     * // ...,PennElementName,PennElementType,Parameter,Value,EventTime,Comments
+     * // ...,myCanvas,Canvas,Print,300;200,1686316599815,NULL
+     * @function log
+     * @memberof Canvas
+     * @instance
+     */
     for (let i=0; i<this._prints.length; i++)
       this.log("Print",w+";"+h,this._prints[i].date,this._prints[i].args.join(' '));
   }

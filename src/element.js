@@ -57,6 +57,24 @@ Object.defineProperty(window,'self',{ get(){
   return handler;
 }, set(){ throw Error("self is read-only") } });
 
+// In case one uses getElement before newElement (eg for Var elements), the script needs to be able to retrieve the element later on
+class ElementRetrieval {
+  constructor(name,trial,type) {
+    this.name = name;
+    this.trial = trial;
+    this.type = type;
+  }
+  retrieve() {
+    const trial = this.trial || trials.current;
+    if (trial && trial._elements) {
+      const element = trial._elements.find( e=>e._type==this.type && e._name == this.name );
+      if (element) return element;
+      else if (trials.running===this.trial)
+        debug.error("Could not find an element named '"+this.name+"' in the current trial");
+    }
+  }
+}
+
 /** 
  * PennController commands are called on element references via `newElement()` or `getElement()`,
  * where `Element` stands for the element type.
@@ -77,7 +95,7 @@ export class Commands extends Function {
     Object.defineProperty(this,'length',{writable: true});
     Object.defineProperty(this,'name',{writable: true});
     if (element instanceof Element) this._elementRef = element;
-    else if (element instanceof Array && element.length==3) this._elementRetrieval = element;
+    else if (element instanceof ElementRetrieval) this._elementRetrieval = element;
     this._sequence = [];
     this._currentTrial = null;
     this._node = null;
@@ -103,17 +121,7 @@ export class Commands extends Function {
   }
   get _element() { 
     if (this._elementRef instanceof Element) return this._elementRef;
-    if (this._elementRetrieval instanceof Array && this._elementRetrieval.length == 3){
-      if (typeof(this._elementRetrieval[0])!="string" || typeof(this._elementRetrieval[2])!="string") return;
-      const trial = this._elementRetrieval[1] || trials.current;
-      if (trial && trial._elements) {
-        const element = trial._elements.find( e=>e._type==this._elementRetrieval[2] && e._name == this._elementRetrieval[0] );
-        if (element) {
-          this._elementRef = element;
-          return element;
-        }
-      }
-    }
+    if (this._elementRetrieval instanceof ElementRetrieval) return (this._elementRef = this._elementRetrieval.retrieve());
   }
   set _element(v) { /* void */ }
   _asProxy() {
@@ -372,7 +380,7 @@ export const addElementType = (type, proto) => {
     if (element === undefined)
       debug.warning(`Found get${type}('${name}') before new${type}('${name}') could be found; make sure the element is created before the first get.`);
     // return new Commands(element,p.actions,p.settings,p.test);
-    return (new Commands(element||[name,trials.current,type],p.actions,p.settings,p.test))._asProxy();
+    return (new Commands(element||new ElementRetrieval(name,trials.current,type),p.actions,p.settings,p.test))._asProxy();
   }
   elements['default'+type] = new Proxy({},{get(t,p){
     if (p=="settings") return elements['default'+type];

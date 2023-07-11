@@ -10,6 +10,9 @@ window.PennController._AddElementType('Button', function (PennEngine){
    * @param {string} name - The name of the element
    * @param {string} [text=name] - The text of the button
    * @global
+   * @example
+   * // Creates a Button element named "next" with the text "Move to the next trial"
+   * newButton("next", "Move to the next trial")
    * @see Button
    */
   this.immediate = function(name,text){ 
@@ -30,6 +33,18 @@ window.PennController._AddElementType('Button', function (PennEngine){
     r();
   }
   this.end = async function(){ 
+    /**
+     * @summary Adds a line to the results file for each click on the button.
+     * @description
+     * The timestamp in the EventTime column corresponds to when the click happened.
+     * @example
+     * newButton("Click me!").log().print().wait()
+     * // ...,PennElementName,PennElementType,Parameter,Value,EventTime,Comments
+     * // ...,Click me!,Button,Click,Click,1688484672562,NULL
+     * @function log
+     * @memberof Button
+     * @instance
+     */
     if (this._log && this._clicks) this._clicks.forEach(c=>this.log("Click", "Click", c));
   }
   this.value = async function () { return (this._nodes||{main:{}}).main.innerText; }

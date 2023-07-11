@@ -181,7 +181,7 @@ window.define_ibex_controller({
 
       // FOOTER
       if (footerHeaderTrials.footer && trial._runFooter) {
-        if (trial._logFooter && footerHeaderTrials.foooter._logStart) logTrialEvent(trial,"__Footer__","__Start__");
+        if (trial._logFooter && footerHeaderTrials.footer._logStart) logTrialEvent(trial,"__Footer__","__Start__");
         await footerHeaderTrials.footer._run(this.element);
         if (trial._logFooter && footerHeaderTrials.footer._logEnd) logTrialEvent(trial,"__Footer__","__End__");
       }
