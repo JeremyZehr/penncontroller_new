@@ -27,6 +27,8 @@ const applyCss = function (css) {
   for (let p in css)
     this.style[p] = css[p];
 }
+// Will apply CSS to the node (main or parent) when it's printed (now or later)
+// eg. cssCommandOnNode(getText("Hello World")._element,'main',{display:'block'})
 const cssCommandOnNode = async function (node, ...args) {
   if (args.length==2 && typeof(args[0])=="string" && args[1] instanceof Object){
     const f = ()=>this._nodes[node].querySelectorAll(args[0]).forEach(n=>applyCss.call(n,css));

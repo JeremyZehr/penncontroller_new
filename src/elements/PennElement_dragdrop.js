@@ -36,6 +36,9 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
     else if (what=='_drops'){
       d.drag = [];
       d.offset = {x: this._offset.x, y: this._offset.y};
+      // Need to turn position to relative to properly place the dropped elements
+      if (node instanceof Node && document.body.contains(node) && !{absolute:1,relative:1}[node.style.position])
+        node.style.position = "relative";
     }
     this[what].push(d);
     return d;
@@ -97,13 +100,17 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
     if (this._single && destination.drag.length>0){
       if (!this._swap || destination.drag.indexOf(d)>=0) 
         return cancelDragging.call(this,this._dragging.drop); // Back to original location
-      const previous = destination.drag.shift();
-      d.placeholder.parentElement.insertBefore(previous.node,d.placeholder);
-      previous.drop = d.drop;
-      if (d.drop) d.drop.drag = [previous,...d.drop.drag.filter(v=>[previous,d].indexOf(v)<0)];
-      // TODO: swap styles too
+      const alreadyAtDestination = destination.drag.shift();
+      d.placeholder.parentElement.insertBefore(alreadyAtDestination.node,d.placeholder);
+      alreadyAtDestination.drop = d.drop;
+      if (d.drop) d.drop.drag.push(alreadyAtDestination);
+      const styleAttributes = ['display','position','top','left'];
+      styleAttributes.forEach(s=>alreadyAtDestination.node.style[s]=d.oldStyle[s]||'unset');
+      const alreadyAtDestinationStyle = styleAttributes.map(s=>alreadyAtDestination.node.style[s]||'unset');
+      styleAttributes.forEach(s => d.node.style[s] = alreadyAtDestinationStyle[s]);
     }
     d.node.style['pointer-events'] = 'unset';
+    if (d.drop && d.drop.drag) d.drop.drag = d.drop.drag.filter(v=>v.node != d.node);
     d.drop = destination;
     destination.drag.push(d);
     // if (this._bungee) {
@@ -116,15 +123,20 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
     // }
     const dragBCR = d.node.getBoundingClientRect(), destinationBCR = destination.node.getBoundingClientRect();
     destination.node.append(d.node);
-    d.node.style.position = "static";
-    if (destination.offset.x!==undefined) {
-      d.node.style['margin-left'] = destination.offset.x;
-      d.node.style['margin-top'] = destination.offset.y;
-    }
-    else {
-      d.node.style['margin-left'] = dragBCR.x-destinationBCR.x;
-      d.node.style['margin-top'] = dragBCR.y-destinationBCR.y;
-    }
+    d.node.style.position = 'absolute';
+    d.node.style.left = destination.offset.x!==undefined ? destination.offset.x : dragBCR.x - destinationBCR.x;
+    d.node.style.top = destination.offset.y!==undefined ? destination.offset.y : dragBCR.y - destinationBCR.y;
+    // d.node.style.top = 'unset';
+    // d.node.style.left = 'unset';
+    // d.node.style.position = "static";
+    // if (destination.offset.x!==undefined) {
+    //   d.node.style['margin-left'] = destination.offset.x;
+    //   d.node.style['margin-top'] = destination.offset.y;
+    // }
+    // else {
+    //   d.node.style['margin-left'] = dragBCR.x-destinationBCR.x;
+    //   d.node.style['margin-top'] = dragBCR.y-destinationBCR.y;
+    // }
     if (d.placeholder instanceof Node) d.placeholder.remove();
     d.placeholder = undefined;
     this._dragging = null;
