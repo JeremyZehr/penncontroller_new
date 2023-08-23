@@ -439,6 +439,19 @@ export const standardCommands = {
       r();
     },
     /**
+     * Hides the element now if it's on the page, or when later on when printed, while still occupying space
+     * @example
+     * // Print the Text element above the button but make it visible only after a click
+     * newText("Hello world").hidden().print(),
+     * newButton("Click me!").italic().print(),
+     * getText("Hello world").visible()
+     * @memberof StandardCommands
+     * @instance
+     */
+    hidden: async function(r) {
+      await cssCommandOnNode.call(this, 'main', {'visibility': 'hidden'}); r();
+    },
+    /**
      * Italicizes the textual content of the element
      * @example
      * // Makes the button's text appear in italics
@@ -611,7 +624,20 @@ export const standardCommands = {
      * @memberof StandardCommands
      * @instance
      */
-    size: async function(r,w,h) { await cssCommandOnNode.call(this, 'main', {width: w, height: h}); r(); }
+    size: async function(r,w,h) { await cssCommandOnNode.call(this, 'main', {width: w, height: h}); r(); },
+    /**
+     * Reveal a previously hidden element
+     * @example
+     * // Print the Text element above the button but make it visible only after a click
+     * newText("Hello world").hidden().print(),
+     * newButton("Click me!").italic().print(),
+     * getText("Hello world").visible()
+     * @memberof StandardCommands
+     * @instance
+     */
+    visible: async function(r) {
+      await cssCommandOnNode.call(this, 'main', {'visibility': 'visible'}); r();
+    }
   },
   tests: {
     /**

@@ -399,23 +399,23 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
      * @instance
      */
     $removeDrop: async function(r,...els){ await removeWhat.call(this,'_drops', els); r(); },
-     /**
+    /**
      * Halts the script until an element is dropped into a dropzone
      * @function wait 
      * @param  {Command} [test] - Resumes the script only if the test is successful
      * @example
      * // Halts the script until "A" is in canvas 1 and "B" in canvas 2
      * newDragDrop("dd", "bungee")
-     *  .addDrag( newText("A").print() , newText("B").print() )
-     *  .addDrop( 
-     *      newCanvas("dropzone1", 100,100).color("cyan").print(),
-     *      newCanvas("dropzone2", 100,100).color("pink").print() 
-     *  )
-     *  .wait(
-     *      self.test.dropped(getText("A"),getCanvas("dropzone1"))
-     *      .and( self.test.dropped(getText("B"),getCanvas("dropzone2")) )
-     *      .failure( newText("Keep trying").print() )
-     *  )
+     *   .addDrag( newText("A").print() , newText("B").print() )
+     *   .addDrop( 
+     *     newCanvas("dropzone1", 100,100).color("cyan").print(),
+     *     newCanvas("dropzone2", 100,100).color("pink").print() 
+     *   )
+     *   .wait(
+     *     self.test.dropped(getText("A"),getCanvas("dropzone1"))
+     *       .and( self.test.dropped(getText("B"),getCanvas("dropzone2")) )
+     *       .failure( newText("Keep trying").print() )
+     *   )
      * @memberof DragDrop
      * @instance
      */
@@ -427,6 +427,19 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
     }
   }
   this.settings = {
+    /**
+     * Will bring elements back to the exact location from which they were dragged if dropped outside a drop zone
+     * @function bungee
+     * @param  {boolean} [switch=true] - Pass false to turn off this behavior
+     * @example
+     * // Will bring "A" back where it was 
+     * newDragDrop("dd")
+     *   .bungee()
+     *   .addDrag( newText("A").print() )
+     *   .addDrop( newCanvas("dropzone1", 100,100).color("cyan").print() )
+     * @memberof DragDrop
+     * @instance
+     */
     bungee: function(r,yes){ this._bungee = (yes===undefined || yes); r(); },
     $offset: async function(r,...args) { 
       const offset = {x:undefined,y:undefined}, drops = [];

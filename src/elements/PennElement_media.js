@@ -6,9 +6,16 @@
 
 (()=>{
 
-let user_has_interacted = false;
-document.documentElement.addEventListener("click", ()=>user_has_interacted=true);
-document.documentElement.addEventListener("keydown", ()=>user_has_interacted=true);
+const audioCtx = new AudioContext();
+let resumingAudioCtx = null;
+let user_has_interacted = false
+const user_interaction_callback = ()=>{
+  if (user_has_interacted) return;
+  user_has_interacted = true;
+  resumingAudioCtx = audioCtx.resume(); // Resume after first interaction to allow playback
+}
+document.documentElement.addEventListener("click", user_interaction_callback, false);
+document.documentElement.addEventListener("keydown", user_interaction_callback, false);
 
 const TIME_DIFFERENCE_PRELOADED = 0.1;
 let RATIO_PRELOADED = 0.95;
@@ -21,14 +28,19 @@ window.PennController.newTrial.ResetPrefix = function(prefix){
   return oldResetPrefix.call(this,prefix);
 }
 
+const tracks = new Map();
+
 // Create a rewind helper method for safe 
-const rewind = o=>{
+const rewind = async o=>{
   if (!(o instanceof Node)) return;
   const v = o.volume;
   o.volume = 0;
+  const track = tracks.get(o);
+  if (track) track.disconnect(); // make sure no sound comes out
   o.pause();
   if (o.currentTime !== 0 && (o.currentTime > 0 && o.currentTime < o.duration)) o.currentTime = 0;
   o.volume = v;
+  if (track) track.connect(audioCtx.destination); // ready for next playback
 }
 
 const addMediaElement = mediaType => window.PennController._AddElementType(mediaType, function(PennEngine) {
@@ -42,6 +54,17 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
       target_ratio = target_ratio||RATIO_PRELOADED;
     else
       target_ratio = undefined;
+    this._pause = ()=>{
+      if (!(this._media instanceof HTMLMediaElement)) return;
+      const track = tracks.get(this._media);
+      if (track) track.disconnect();
+      this._media.pause();
+    };
+    this._prepareForNextPlayback = ()=>{
+      if (!(this._media instanceof HTMLMediaElement)) return;
+      const track = tracks.get(this._media);
+      if (track) track.connect(audioCtx.destination);
+    };
     this.addResource(file, async uri => { // new Promise((resolve,reject) => {
       const object = document.createElement(mediaType=="Audio"?"AUDIO":"VIDEO");
       object.muted = true;
@@ -60,6 +83,8 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
         else window.requestAnimationFrame(()=>checkLoaded(r));
       };
       object.src = uri;
+      const track = audioCtx.createMediaElementSource(object);
+      tracks.set(object, track);
       const p = await new Promise(r=>{
         object.addEventListener('error', e=>r(e.target.error));
         object.addEventListener("canplaythrough", ()=>checkLoaded(r));
@@ -67,8 +92,8 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
       if (p instanceof MediaError) throw Error("Invalid media at "+uri);
       return object;
     })
-    .then( o => {
-      rewind(o);
+    .then( async o => {
+      await rewind(o);
       o.controls = (mediaType=="Audio"?true:false);
       o.style["max-width"] = "100%";
       o.style["max-height"] = "100%";
@@ -77,7 +102,15 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
         o.muted = false;
         this._nodes.main.append(o);
       }
-      o.addEventListener("play", ()=>this._events.push(["Play",o.currentTime,Date.now()]));
+      // No handler to capture clicks on media controls, so using a trick instead
+      let mouse_over_controls = false;
+      o.addEventListener("mouseenter", ()=>mouse_over_controls=true);
+      o.addEventListener("mouseleave", ()=>mouse_over_controls=false);
+      o.addEventListener("play", ()=>{
+        // If play fires off when the mouse is over the controls, we assume it was initiated by the user
+        if (mouse_over_controls) resumingAudioCtx = audioCtx.resume(); // Resume after first interaction to allow playback
+        this._events.push(["Play",o.currentTime,Date.now()]);
+      });
       o.addEventListener("pause", ()=>this._events.push(["Paused",o.currentTime,Date.now()]));
       o.addEventListener("seeking", ()=>this._events.push(["Seeking",o.currentTime,Date.now()]));
       o.addEventListener("seeked", ()=>this._events.push(["Seeked",o.currentTime,Date.now()]));
@@ -92,9 +125,7 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
 
   // This is executed when newAudio/newVideo is executed in the trial (converted into a Promise, so call resolve)
   this.uponCreation = async function(r){
-    if (this._media instanceof Node) {
-
-    }
+    if (this._media instanceof HTMLMediaElement) this._prepareForNextPlayback();
     this._hasPlayed = false;                 // Whether the media has played before
     this.addEventListener("ended", ()=>this._hasPlayed=true);
     this._events = [];
@@ -117,7 +148,7 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
     this._disableLayer = undefined;
     this.addEventListener("print", ()=>{
       if (this._media instanceof Node) {
-        this._media.pause();
+        // this._media.pause();
         this._media.muted = false;
         this._media.controls = true;
         this._nodes.main.append(this._media);
@@ -132,8 +163,9 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
   };
 
   // This is executed at the end of a trial
-  this.end = function(){
-    rewind(this._media);
+  this.end = async function(){
+    await rewind(this._media);
+    this._pause();
     if (this._disableLayer instanceof Node) {
       this._disableLayer.remove();
       this._disableLayer = undefined;
@@ -152,17 +184,22 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
     /* $AC$ Audio PElement.play() Starts the audio playback $AC$ */
     /* $AC$ Video PElement.play() Starts the video playback $AC$ */
     play: async function(r, loop){
-      rewind(this._media);
       if (!(this._media instanceof HTMLMediaElement)) 
         return r(PennEngine.debug.error(`No media to play for ${mediaType} element ${this._name}`));
+      if (resumingAudioCtx instanceof Promise) await resumingAudioCtx;
+      this._prepareForNextPlayback();
       if (loop===undefined) this._media.removeAttribute("loop");
       else this._media.loop = true;
+      if (this._media.currentTime >= this._media.duration)
+        await rewind(this._media);
       this._media.muted = false;
       const p = this._media.play();
-      p.catch(e=>PennEngine.debug.error(
-        `Error playing ${this._type} element "${this._name}"; note that most browsers block playback until the user has interacted with the page via a click or a keypress`
-      ));
-      if (p instanceof Promise) await p;
+      if (p instanceof Promise) {
+        p.catch(e=>PennEngine.debug.error(
+          `Error playing ${this._type} element "${this._name}"; note that most browsers block playback until the user has interacted with the page via a click or a keypress`
+        ));
+        await p;
+      }
       r();
     },
     /* $AC$ Audio PElement.pause() Pauses the audio playback $AC$ */
@@ -170,8 +207,8 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
     pause: async function(r){
       if (!(this._media instanceof HTMLMediaElement)) 
         return r(PennEngine.debug.error(`No media to play for ${mediaType} element ${this._name}`));
-      const p = this._media.pause();
-      if (p instanceof Promise) await p;
+      this._pause();
+      this._prepareForNextPlayback();
       r();
     },
     /* $AC$ Audio PElement.stop() Stops the audio playback $AC$ */
@@ -179,9 +216,9 @@ const addMediaElement = mediaType => window.PennController._AddElementType(media
     stop: async function(r){
       if (!(this._media instanceof HTMLMediaElement)) 
         return r(PennEngine.debug.error(`No media to play for ${mediaType} element ${this._name}`));
-      const p = this._media.pause();
-      if (p instanceof Promise) await p;
+      this._pause();
       this._media.currentTime = this._media.duration;
+      this._prepareForNextPlayback();
       r();
     },
     // Here, we resolve only when the video ends (and the test is felicitous, if provided)

@@ -22,10 +22,9 @@ window.PennController._AddElementType('Timer', function (PennEngine){
         this._events.push(["Ended", "NA", Date.now()]);
         this.dispatchEvent("elapsed");
       }
-      else
-        setTimeout(()=>this._callback instanceof Function && this._callback(performance.now()));
-        // setTimeout is faster than requestAnimationFrame
-        // check that _callback is still defined in case element has been destroyed in the meantime
+      setTimeout(()=>this._callback instanceof Function && this._callback(performance.now()));
+      // setTimeout is faster than requestAnimationFrame
+      // check that _callback is still defined in case element has been destroyed in the meantime
     };
     this._callback();
     r();

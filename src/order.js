@@ -24,9 +24,13 @@ Object.defineProperty(window, 'items', {
     if (order.og && finalItems) return debug.on ? finalItems : [];
     const its = [];
     for (let i of items) {
-      if (i instanceof Trial) its.push(i._asItem());
-      else if (i instanceof Template) its.push(...i._asItems());
-      else its.push(i);
+      try {
+        if (i instanceof Trial) its.push(i._asItem());
+        else if (i instanceof Template) its.push(...i._asItems());
+        else its.push(i);
+      } catch (e) {
+        debug.error(e.message);
+      }
     }
     its.push = (...i)=>items.push(...i); its.pop = (...i)=>items.pop(...i);
     its.unshift = (...i)=>items.unshift(...i); its.shift = (...i)=>items.shift(...i);

@@ -147,6 +147,7 @@ export const debug = {
     }
     message(msg,errorsTab);
     showTab("Errors");
+    console.error(msg);
     return debug;
   },
   warning: (msg,url,linenumber) => {
