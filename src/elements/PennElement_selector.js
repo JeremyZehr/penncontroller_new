@@ -5,7 +5,7 @@ window.PennController._AddElementType('Selector', function (PennEngine){
     this._trial = PennEngine.trials.current;
     this._prints = new Map();
     const listenToPrints = ()=>{
-      if (PennEngine.trials.current != this._trial)
+      if (PennEngine.trials.current == this._trial)
         this._trial._elements.forEach(e=>e.addEventListener("print",(...args)=>this._prints.set(e,args)));
       else window.requestAnimationFrame(listenToPrints);
     }
