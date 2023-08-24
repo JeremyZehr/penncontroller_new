@@ -113,7 +113,8 @@ window.PennController._AddElementType('Selector', function (PennEngine){
       await c.call();
       const element = this._elements.find(el=>c._element==el);
       if (element===undefined) return r();
-      this.dispatchEvent("select", element);
+      await this.dispatchEvent("select", element);
+      r();
     },
     unselect: async function(r) {
       if (this._selectedElement) this.dispatchEvent("unselect", this._selectedElement);
