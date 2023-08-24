@@ -126,7 +126,7 @@ export class Template {
       // Scan existing tables if no reference was passed
       if (typeof(this.table_name)!="string") {
         const tableNames = Object.keys(tables);
-        if (tablesAsArray.length) this.table_name = tableNames[0];
+        if (tableNames.length) this.table_name = tableNames[0];
         else {
           const chunk_table_name = Object.keys(window.CHUNKS_DICT).find(n=>n.match(/\.[tc]sv$/i));
           if (chunk_table_name==undefined) throw Error("No table found in the project to use with Template");
@@ -181,7 +181,7 @@ export class Template {
 }
 export const template = (table_ref_or_name, fn) => {
   if (fn===undefined && table_ref_or_name!==undefined){
-    fn = table;
+    fn = table_ref_or_name;
     table_ref_or_name = undefined;
   }
   items.push(new Template(table_ref_or_name,fn));
