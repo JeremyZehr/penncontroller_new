@@ -1,4 +1,5 @@
 import { width,height,left,top } from './debug.css';
+import { VERSION } from './version.js';
 
 window.onerror = (msg, url, linenumber) => {
   debug.error(msg,url,linenumber);
@@ -13,13 +14,11 @@ window.addEventListener('rejectionhandled', event => {
   console.error("Promise error (handled):", event);
 });
 
-const VERSION = 2.1;
-
 const popin = document.createElement("DIV");
 popin.classList.add("debugger");
 const header = document.createElement("DIV");
 header.classList.add("header");
-header.innerText = "Debug (PennController "+VERSION+")";
+header.innerText = "Debug (PennController "+VERSION.replace(/^(\d+(\.\d+)?)(\..+)?$/,"$1")+")";
 let x_prev, y_prev, move_or_resize;
 header.addEventListener("mousedown", e=>{ popin.style['user-select'] = 'none'; move_or_resize = 'move'; });
 document.addEventListener("mouseup", ()=>{ move_or_resize=undefined; popin.style['user-select'] = 'unset'; });

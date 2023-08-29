@@ -8,6 +8,7 @@ class Table {
   static strip(text,delimiter) { // process the regexp-delimiter-parsed header and rows
     return (text||"")
               .replace(new RegExp(`^${delimiter}`), '')   // remove delimiter at the start
+              .replace("\ufeff","")                       // remove UTF marker
               .replace(/^"(([^"]|\\")+)"$/, "$1")         // remove double quotes
               .replace(/^'(([^']|\\')+)'$/, "$1");        // remove single quotes
   }
@@ -29,7 +30,7 @@ class Table {
     // Find the delimiter that outputs the max number of columns
     let chosen_delimiter = '';
     DELIMITERS.forEach(d=>{
-      const rgx = new RegExp(`(^|${d})("([^"]|\\")*?"|'([^']|\\')*?'|[^${d}]*)`,'g');
+      const rgx = new RegExp(`(^|${d})("([^"]|\\")*?(?<!\\\\)"|'([^']|\\')*?(?<!\\\\)'|([^${d}"'][^${d}]*)*)`,'g');
       const cols = lines[0].match(rgx), firstline = lines[1].match(rgx);
       // Must be consistent (same # of cells for header & 1st row) and exhaustive (regexp captures all chars)
       if (cols && firstline && cols.length == firstline.length && cols.length > this._header.length && cols.join('').length==lines[0].length){
