@@ -69,7 +69,7 @@ window.PennController._AddElementType('Selector', function (PennEngine){
     if (!this._log || !(this._events instanceof Array)) return;
     const strLog = this._log.filter(s=>typeof(s)=="string").map(s=>s.toLowerCase());
     this._events.forEach((e,i)=>{
-      if (i==this._events.length-1&&strLog.indexOf("last")>=0 || i==0&&strLog.indexOf("first")>=0 || strLog.indexOf("all")>=0)
+      if (i==this._events.length-1&&strLog.includes("last") || i==0&&strLog.includes("first") || strLog.includes("all"))
         this.log(...e);
     });
   }

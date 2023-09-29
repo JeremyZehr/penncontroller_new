@@ -2,6 +2,7 @@ import './index.dev';
 
 import './elements/PennElement_button';
 import './elements/PennElement_canvas';
+import './elements/PennElement_controller';
 import './elements/PennElement_dragdrop';
 import './elements/PennElement_dropdown';
 import './elements/PennElement_eyetracker';

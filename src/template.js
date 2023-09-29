@@ -152,7 +152,7 @@ export class Template {
         // use a proxy to throw a warning if accessing a column that does not exist
         let row = new Proxy(rows[n], { get(t,v){
           if (!(v in t) && !(v in warningsThrown)) {
-            debug.warning(`Attempted to access column '${v}' in ${table.name} but no column of that name was found.`);
+            debug.warning(`Attempted to access column '${v}' in ${table.name} but no such named column was found.`);
             warningsThrown[v] = 1;
           }
           return t[v];

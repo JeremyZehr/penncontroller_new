@@ -207,13 +207,14 @@ export const newTrial = (label,...sequence) => {
   return trial;
 }
 
-const footerHeaderTrials = {};
+export const footerHeaderTrials = {};
 const footerHeader = (which,...sequence) => {
   footerHeaderTrials[which] = footerHeaderTrials[which] || new Trial();
   const trial = footerHeaderTrials[which];
   sequence.forEach(s=>removeSendResultsFromItems(s));
   trial._sequence.push(...sequence);
   trial._properElements.push(...trials.constructing._properElements);
+  trial._defaults = {...trials.constructing._defaults};
   Object.defineProperty(trial,'_node',{get(){ return trials.running._node; }});
   trials.constructing = new Trial();
   return trial;

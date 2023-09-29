@@ -1,4 +1,4 @@
-import { trials, SendResults, removeSendResultsFromItems } from './trial'
+import { trials, footerHeaderTrials, SendResults, removeSendResultsFromItems, footer } from './trial'
 import { PennEngine } from './pennengine';
 import { Resource } from './resource';
 import { standardCommands } from './standardCommands';
@@ -362,16 +362,24 @@ export const addElementType = (type, proto) => {
     trials.current._properElements.push(element);
     const commands = new Commands(element,p.actions,p.settings,p.test);
     commands._sequence.push(()=>element._init());
+    // default commands
+    let defaultCommands = [];
+      // header
+    if (trials.current._runHeader && footerHeaderTrials.header && footerHeaderTrials.header._defaults[type] instanceof Array)
+      defaultCommands = footerHeaderTrials.header._defaults[type]
+      // specific trial
     if (trials.current._defaults[type] instanceof Array)
-      trials.current._defaults[type].reduce((p,v)=>{
-        let thisFn;
-        if (v.name.startsWith("test.")) thisFn=[p.test,p.test[v.name.replace(/^test\./,'')]];
-        else if (v.name.startsWith("testNot.")) thisFn=[p.testNot,p.testNot[v.name.replace(/^testNot\./,'')]];
-        else thisFn=[p,p[v.name]];
-        if (thisFn && thisFn[1] instanceof Function) p=thisFn[1].apply(thisFn[0],v.args);
-        else debug.error(`Could not find command default${type}.<strong>${v.name}</strong>`);
-        return p;
-      }, commands);
+      defaultCommands = [...defaultCommands, ...trials.current._defaults[type]]
+    if (defaultCommands.length)
+      defaultCommands.reduce((p,v)=>{
+          let thisFn;
+          if (v.name.startsWith("test.")) thisFn=[p.test,p.test[v.name.replace(/^test\./,'')]];
+          else if (v.name.startsWith("testNot.")) thisFn=[p.testNot,p.testNot[v.name.replace(/^testNot\./,'')]];
+          else thisFn=[p,p[v.name]];
+          if (thisFn && thisFn[1] instanceof Function) p=thisFn[1].apply(thisFn[0],v.args);
+          else debug.error(`Could not find command default${type}.<strong>${v.name}</strong>`);
+          return p;
+        }, commands);
     // return commands;
     return commands._asProxy();
   }

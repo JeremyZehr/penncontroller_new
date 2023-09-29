@@ -28,7 +28,12 @@ window.PennController._AddElementType('Scale', function (PennEngine){
         cell.style.display = 'flex';
         const label = document.createElement("LABEL");
         label.htmlFor = input.id;
-        label.append(this._labels.length>i?this._labels[i]:i);
+        if (this._labels.length > i) {
+          if (typeof(this._labels[i])=="string") label.innerHTML = this._labels[i];
+          else label.append(this._labels[i]);
+        }
+        else
+          label.textContent = i;
         if (["right","left"].indexOf(this._labelsPosition)>=0) cell.style['flex-direction'] = 'row';
         else if (["top","bottom"].indexOf(this._labelsPosition)>=0) cell.style['flex-direction'] = 'column';
         if (["right","bottom"].indexOf(this._labelsPosition)>=0) cell.append(label);
