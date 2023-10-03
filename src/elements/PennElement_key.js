@@ -61,7 +61,11 @@ window.PennController._AddElementType('Key', function (PennEngine){
       if (whats.length==0) this._log = ["all"];
       else this._log = whats; 
       r(); 
-    }
+    },
+    once: async function(r) {
+      this.addEventListener("keydown", ()=>this._disabled=true);
+      r();
+    },
   }
   this.test = {
     pressed: async function(key,first){ 

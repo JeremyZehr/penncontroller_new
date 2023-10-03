@@ -152,6 +152,10 @@ window.PennController._AddElementType('Tooltip', function (PennEngine){
       r();
     },
     label: function(r,text) { this._label.innerHTML = text; r(); },
+    once: async function(r) {
+      this.addEventListener("validate", ()=>this._disabled=true);
+      r();
+    },
     position: function(r,p) { this._position = p; r(); },
     text: function(r,text) { this._text.innerHTML = text; r(); }
   }

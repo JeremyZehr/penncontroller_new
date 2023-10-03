@@ -52,6 +52,10 @@ window.PennController._AddElementType('DropDown', function (PennEngine){
       this._log = what||"all";
       r();
     },
+    once: async function(r) {
+      this.addEventListener("select", ()=>{ this._disabled=true; this._nodes.main.disabled = true; });
+      r();
+    },
     remove: function(r,...options) {
       if (this._nodes && this._nodes.main instanceof Node){
         if (options.length>0)

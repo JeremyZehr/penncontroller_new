@@ -85,8 +85,11 @@ window.PennController._AddElementType('TextInput', function (PennEngine){
       if (whats.length==0) this._log = true; 
       else this._log = whats;
       r(); 
-    }// ,
-    // once: function(r){ this.addEventListener("waited", ()=>this._nodes.main.disabled=true || this._disabled=true;); r(); }
+    },
+    once: async function(r) {
+      this.addEventListener("waited", ()=>{ this._disabled=true; this._nodes.main.disabled=true; });
+      r();
+    },
   }
   this.test = {
     $text: async function(t){ 

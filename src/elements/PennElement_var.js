@@ -8,7 +8,7 @@ window.PennController._AddElementType('Var', function (PennEngine){
   PE = PennEngine;
 
   this.immediate = function(name,value){ 
-    console.log("new var element", name, this);
+    console.log("new var element", name, this, PE.trials.current);
     this._initialValue = value;
     this._global = false;
     this._target = this;
@@ -85,7 +85,8 @@ window.PennController._AddElementType('Var', function (PennEngine){
 PE.elements.getVar = function(name){
   let v = PE.trials.current._elements.find(e=>e._type=="Var"&e._name==name);
   if (v) return v._commands;
-  v = PE.elements.newVar(name);
+  // v = PE.elements.newVar(name);
+  v = PE.elements.newVar("anonymous-"+name+"-"+PE.utils.uuid())
   console.log("created a var element from PE", v, PE.trials.current);
   const c =  ()=>{
     if (!global_vars.hasOwnProperty(name))

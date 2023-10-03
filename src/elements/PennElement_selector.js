@@ -158,6 +158,10 @@ window.PennController._AddElementType('Selector', function (PennEngine){
       else this._log = whats;
       r();
     },
+    once: async function(r) {
+      this.addEventListener("select", ()=>this._disabled=true);
+      r();
+    },
     $shuffle: async function(r,...refs) {
       let indices = []; // List the indices of the references commands/elements
       for (let i=0; i < refs.length; i++)

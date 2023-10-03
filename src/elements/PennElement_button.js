@@ -118,6 +118,21 @@ window.PennController._AddElementType('Button', function (PennEngine){
      */
     text: function (r,text) { r(this._nodes.main.innerText = text); },
     /**
+     * Makes the button non-clickable after the first click
+     * @function once
+     * @example
+     * // Disables the button once recording starts
+     * newButton("control", "Start recording").print().once().wait()
+     * ,
+     * newMediaRecorder("audio").record()
+     * @memberof Button
+     * @instance
+     */
+    once: async function(r) {
+      this.addEventListener("click", ()=>this._disabled=true);
+      r();
+    },
+    /**
      * Halts the script until the button is clicked
      * @function wait 
      * @example

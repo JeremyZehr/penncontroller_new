@@ -54,6 +54,10 @@ window.PennController._AddElementType('MouseTracker', function (PennEngine){
   }
   this.actions = {
     $callback: async function(r,...c) { this._callbacks.push(c); r(); },
+    once: async function(r) {
+      this.addEventListener("action", ()=>this._disabled=true);
+      r();
+    },
     start: async function(r){ this._tracking = true; r(); },
     stop: async function(r){ this._tracking = false; r(); },
     $wait: async function(r,t){

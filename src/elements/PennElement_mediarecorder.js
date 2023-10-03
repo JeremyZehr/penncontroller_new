@@ -393,7 +393,11 @@ window.PennController._AddElementType("MediaRecorder", function(PennEngine) {
     enable: async function(r){
       this._disabled = false;
       r();
-    }
+    },
+    once: async function(r) {
+      this.addEventListener("recorded", ()=>this._disabled=true);
+      r();
+    },
   };
   
   this.test = {

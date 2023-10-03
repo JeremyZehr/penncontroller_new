@@ -45,6 +45,10 @@ window.PennController._AddElementType('Timer', function (PennEngine){
       }));
       r();
     },
+    once: async function(r){
+      this.addEventListener("elapsed", ()=>this._disabled=true);
+      r();
+    },
     pause: async function(r){
       this._running = false;
       this._events.push(["Paused","NA",Date.now()]);
@@ -61,6 +65,7 @@ window.PennController._AddElementType('Timer', function (PennEngine){
       r();
     },
     start: async function(r){
+      if (this._disabled) return r();
       this._startTime = undefined;
       this._running = true;
       this._events.push(["Started","NA",Date.now()]);

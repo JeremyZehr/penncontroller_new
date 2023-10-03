@@ -471,6 +471,10 @@ window.PennController._AddElementType('DragDrop', function (PennEngine){
       }
       r();
     },
+    once: async function(r) {
+      this.addEventListener("drop", ()=>this._disabled=true);
+      r();
+    },
     single: function(r,yes){ this._single = (yes===undefined || yes); r(); },
     swap: function(r,yes){ this._swap = (yes===undefined || yes); this._single = this._swap || this._single; r(); }
   }
