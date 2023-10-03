@@ -350,13 +350,14 @@ export const addElementType = (type, proto) => {
   const p = new proto(PennEngine);
   elements['new'+type] = (...args) => {
     const element = new Element(type, p, ...args);
+    const argName = (args[0] && typeof(args[0])=="string" ? args[0] : "");
     // In case the immediate method didn't explicitly name the element, choose a name automatically
-    element._name = element._name || (args[0] && typeof(args[0])=="string" ? args[0] : type)
+    element._name = element._name || argName || type;
     // Now make sure the name is unique
     const name = element._name;
     let i = 1;
     while (trials.current._elements.find(e=>e._type==type && e._name==element._name)) element._name = name+'-'+parseInt(i=i+1);
-    if (element._name != name) debug.warning(`An element named ${name} already exists--naming this one ${element._name}`);
+    if (argName && element._name != name) debug.warning(`A ${type} element named ${name} already exists--naming this one ${element._name}`);
     // The element has its final name, now back it up
     backup.call(element);
     trials.current._properElements.push(element);
