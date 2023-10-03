@@ -83,8 +83,9 @@ window.PennController._AddElementType('Var', function (PennEngine){
 PE.elements.getVar = function(name){
   let v = PE.trials.current._elements.find(e=>e._type=="Var"&e._name==name);
   if (v) return v._commands;
-  // v = PE.elements.newVar(name);
-  v = PE.elements.newVar("anonymous-"+name+"-"+PE.utils.uuid())
+  v = PE.elements.newVar(name);
+  // Do not actually add the Var element to the current trial: this is getVar
+  PE.trials.current._properElements = PE.trials.current._properElements.filter( e=>e!=v._element );
   const c =  ()=>{
     if (!global_vars.hasOwnProperty(name))
       throw new Error(`Found no local of global Var element named ${name}`);

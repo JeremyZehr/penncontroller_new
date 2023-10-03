@@ -135,7 +135,6 @@ window.PennController._AddElementType('Selector', function (PennEngine){
     enableClicks: function(r){ r(this._clicksEnabled = true); },
     frame: function(r,style){
       this.addEventListener("select", e=>{
-        if (this._disabled) return;
         if (this._frame instanceof Node) this._frame.remove();
         this._frame = this._frame || document.createElement("DIV");
         this._frame.style.position = 'absolute';
