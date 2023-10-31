@@ -46,9 +46,10 @@ window.PennController._AddElementType('Scale', function (PennEngine){
     else {
       const slider = document.createElement("INPUT");
       slider.type = "range";
-      slider.min = 0;
-      slider.max = this._nPoints-1;
-      slider.value=(slider.max+slider.min)/2;
+      slider.min = 1;
+      slider.max = this._nPoints;
+      slider.value = this._value === undefined ? (Number(slider.max)+Number(slider.min))/2 : this._value;
+      slider.style.width = "100%";
       let mousedown = undefined;
       slider.onmousedown = e=>mousedown=Date.now();
       slider.onmouseup = e=>{

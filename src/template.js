@@ -77,6 +77,7 @@ class Table {
   }
   setLabel(l) { this._label = l; return this; }
   setGroup(g) { this._group_name = g; return this; }
+  setGroupColumn(g) { this.setGroup(g); return this; }
   setItem(i) { this._item = i; return this; }
   setList(l) { this._group_name = l; return this; }
   setLatin(l) { this._latin = l; return this; }
