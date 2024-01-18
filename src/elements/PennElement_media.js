@@ -4,6 +4,9 @@
 /* $AC$ PennController.newVideo(name,file) Creates a new Video element $AC$ */
 /* $AC$ PennController.getVideo(name) Retrieves an existing Video element $AC$ */
 
+// NOTE: using an AudioContext prevents loading local audios because of cross-origin constraints
+// Maybe dynamically determine whether the experiment is running locally and only use AudioContext if running online? 
+
 (()=>{
 
 const audioCtx = new AudioContext();

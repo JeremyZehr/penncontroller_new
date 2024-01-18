@@ -403,13 +403,14 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
   }
   this.end = async function(){ 
     if (document.body.contains(calibrationDiv)) calibrationDiv.remove();
+    const distantURL = typeof(trackerURL)=="string" && trackerURL.match(/^https?:/i);
     showPredictionDot(false);
     webgazer.removeMouseEventListeners();
     currentETElement = undefined;
     if (this._log && this._elements instanceof Array && this._elements.length) {
       this.log("StartTracking","Time",this._startTime,this._score);
       const log = (param,value,time) => {
-        if (typeof(trackerURL)=="string" && trackerURL.match(/^https?:/i)){
+        if (distantURL){
           const data = {experiment:XpName,id:SessionID,pcnumber:PennEngine.order.current.id,parameter:param,value:value};
           const xhr = new XMLHttpRequest();     // XMLHttpRequest rather than jQuery's Ajax (mysterious CORS problems with jQuery 1.8)
           xhr.open('POST', trackerURL, true);
@@ -432,6 +433,8 @@ window.PennController._AddElementType('EyeTracker', function (PennEngine){
         this._times.map(n=>[...Array(Math.floor(n/209))].map(v=>"ÿ").join('')+String.fromCharCode(n%209+45)).join(''),
         this._startTime
       );
+      if (distantURL)
+        this.log("Upload","Sent",Date.now(),`${XpName}/${SessionID}`);
     }
     return;
   }
