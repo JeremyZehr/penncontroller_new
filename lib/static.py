@@ -84,34 +84,34 @@ copyfile(os.path.join(input_dir,'other_includes','main.js'), os.path.join(output
 
 
 static_js = """
-  var get_params = Object.fromEntries(window.location.search.replace(/^\?/,'').split("&").map(v=>v.split('=')));
+  const get_params = Object.fromEntries(window.location.search.replace(/^\?/,'').split("&").map(v=>v.split('=')));
+  const is_static = ("static" in get_params || !window.location.protocol.toLowerCase().match(/^https?:$/));
 
-  if ("static" in get_params || !window.location.protocol.toLowerCase().match(/^https?:$/)) {
-    if (window.__counter_value_from_server__ === undefined)
-      window.__counter_value_from_server__ = Math.round(1000 * Math.random());
-    if ("withsquare" in get_params)
+  window.__server_py_script_name__ = window.__server_py_script_name__ || "/";
+
+  if (window.__counter_value_from_server__ === undefined)
+    window.__counter_value_from_server__ = Math.round(1000 * Math.random());
+  if ("withsquare" in get_params)
       window.__counter_value_from_server__ = parseInt(get_params.withsquare);
-    window.__server_py_script_name__ = "/";
 
-    const oldAjax = $.ajax;
-    $.ajax = function(...params) {
+  const oldAjax = $.ajax;
+  $.ajax = function(...params) {
       const splitUrl = ((params[0]||Object()).url||"").split("?");
-      if (splitUrl[0] == window.__server_py_script_name__) {
-        if (splitUrl[1] == "allchunks=1")
-          params[0].success.call(this, JSON.stringify(window.CHUNKS_DICT||Object()));
-        else if (params[0].type == "POST") {
-          const blob = new Blob([params[0].data], {type: "text/plain"});
-          const link = document.createElement("A");
-          link.download = "results_"+Date.now()+".bak";
-          link.href = URL.createObjectURL(blob);
-          document.body.append(link);
-          link.click();
-          params[0].success.call(this);
-        }
-      }
-      else
+      const localDict = window.CHUNKS_DICT||Object();
+      if (splitUrl[1] == "allchunks=1" && (is_static || Object.keys(localDict).length>0))
+        return params[0].success.call(this, JSON.stringify(localDict));
+      else if (!is_static)
         return oldAjax.apply(this, params);
-    }
+      else if (params[0].type == "POST") {
+        const blob = new Blob([params[0].data], {type: "text/plain"});
+        const link = document.createElement("A");
+        link.download = "results_"+Date.now()+".bak";
+        link.href = URL.createObjectURL(blob);
+        document.body.append(link);
+        link.click();
+      }
+      if (params[0].success instanceof Function)
+        return params[0].success.call(this);
   }
 """
 
@@ -150,6 +150,8 @@ open(os.path.join(output_dir,"experiment.html"), "w").write(f"""
     <script type="text/javascript" src="conf.js"></script>
 
     <script type="text/javascript" src="chunks.js"></script>
+
+    <script type="text/javascript" src="/?getcounter=1"></script>
 
     <script type="text/javascript">
 {static_js}

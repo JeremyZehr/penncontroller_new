@@ -36,6 +36,9 @@ def server():
     setsquare = request.args.get("setsquare", None)
     counter_file = os.path.join(PRIVATE_DIRECTORY,"counter")
     if setsquare is not None:
+      if setsquare.lower().startswith("inc-"):
+        previous_value = int(open(counter_file,"r").read()) if os.path.exists(counter_file) else 0
+        setsquare = int(previous_value) + int(setsquare.lower().lstrip("inc-"))
       with open(counter_file,"w") as counter:
         counter.write(str(int(setsquare)))
     elif getcounter:
